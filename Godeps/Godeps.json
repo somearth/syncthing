@@ -50,6 +50,10 @@
 			"Rev": "99c1f2d613756768fc4299acd9dc621e11ed3fd7"
 		},
 		{
+			"ImportPath": "github.com/twmb/algoimpl/go/graph",
+			"Rev": "716f8e78b563212cfefb120bedc265741f51d1a4"
+		},
+		{
 			"ImportPath": "github.com/vitrun/qart/coding",
 			"Rev": "ccb109cf25f0cd24474da73b9fee4e7a3e8a8ce0"
 		},

@@ -48,7 +48,6 @@ type service interface {
 	Serve()
 	Stop()
 	Jobs() ([]string, []string) // In progress, Queued
-	BringToFront(string)
 	DelayScan(d time.Duration)
 	IndexUpdated() // Remote index was updated notification
 	Scan(subs []string) error
@@ -65,7 +64,6 @@ type Model struct {
 	cfg               *config.Wrapper
 	db                *db.Instance
 	finder            *db.BlockFinder
-	progressEmitter   *ProgressEmitter
 	id                protocol.DeviceID
 	shortID           protocol.ShortID
 	cacheIgnoredFiles bool
@@ -109,7 +107,6 @@ func NewModel(cfg *config.Wrapper, id protocol.DeviceID, deviceName, clientName,
 		cfg:                cfg,
 		db:                 ldb,
 		finder:             db.NewBlockFinder(ldb),
-		progressEmitter:    NewProgressEmitter(cfg),
 		id:                 id,
 		shortID:            id.Short(),
 		cacheIgnoredFiles:  cfg.Options().CacheIgnoredFiles,
@@ -132,9 +129,6 @@ func NewModel(cfg *config.Wrapper, id protocol.DeviceID, deviceName, clientName,
 
 		fmut: sync.NewRWMutex(),
 		pmut: sync.NewRWMutex(),
-	}
-	if cfg.Options().ProgressUpdateIntervalS > -1 {
-		go m.progressEmitter.Serve()
 	}
 
 	return m
@@ -437,7 +431,6 @@ func (m *Model) NeedSize(folder string) (nfiles int, bytes int64) {
 			return true
 		})
 	}
-	bytes -= m.progressEmitter.BytesCompleted(folder)
 	l.Debugf("%v NeedSize(%q): %d %d", m, folder, nfiles, bytes)
 	return
 }
@@ -517,7 +510,12 @@ func (m *Model) Index(deviceID protocol.DeviceID, folder string, fs []protocol.F
 		return
 	}
 
-	l.Debugf("IDX(in): %s %q: %d files", deviceID, folder, len(fs))
+	if shouldDebug() {
+		l.Debugf("IDX(in): %s %q: %d files", deviceID, folder, len(fs))
+		for _, f := range fs {
+			l.Debugln("<", f)
+		}
+	}
 
 	if !m.folderSharedWith(folder, deviceID) {
 		l.Debugf("Unexpected folder ID %q sent from device %q; ensure that the folder exists and that this device is selected under \"Share With\" in the folder configuration.", folder, deviceID)
@@ -559,7 +557,12 @@ func (m *Model) IndexUpdate(deviceID protocol.DeviceID, folder string, fs []prot
 		return
 	}
 
-	l.Debugf("%v IDXUP(in): %s / %q: %d files", m, deviceID, folder, len(fs))
+	if shouldDebug() {
+		l.Debugf("%v IDXUP(in): %s / %q: %d files", m, deviceID, folder, len(fs))
+		for _, f := range fs {
+			l.Debugln("<", f)
+		}
+	}
 
 	if !m.folderSharedWith(folder, deviceID) {
 		l.Debugf("Update for unexpected folder ID %q sent from device %q; ensure that the folder exists and that this device is selected under \"Share With\" in the folder configuration.", folder, deviceID)
@@ -1071,6 +1074,7 @@ func sendIndexes(conn protocol.Connection, folder string, fs *db.FileSet, ignore
 	defer l.Debugf("sendIndexes for %s-%s/%q exiting: %v", deviceID, name, folder, err)
 
 	minLocalVer, err := sendIndexTo(true, 0, conn, folder, fs, ignores)
+	l.Debugf("sendIndexes for %s-%s/%q at local version %d", deviceID, name, folder, minLocalVer)
 
 	// Subscribe to LocalIndexUpdated (we have new information to send) and
 	// DeviceDisconnected (it might be us who disconnected, so we should
@@ -1094,6 +1098,7 @@ func sendIndexes(conn protocol.Connection, folder string, fs *db.FileSet, ignore
 		}
 
 		minLocalVer, err = sendIndexTo(false, minLocalVer, conn, folder, fs, ignores)
+		l.Debugf("sendIndexes for %s-%s/%q at local version %d", deviceID, name, folder, minLocalVer)
 
 		// Wait a short amount of time before entering the next loop. If there
 		// are continuous changes happening to the local index, this gives us
@@ -1128,16 +1133,26 @@ func sendIndexTo(initial bool, minLocalVer int64, conn protocol.Connection, fold
 
 		if len(batch) == indexBatchSize || currentBatchSize > indexTargetSize {
 			if initial {
+				if shouldDebug() {
+					l.Debugf("sendIndexes for %s-%s/%q: %d files (<%d bytes) (initial index)", deviceID, name, folder, len(batch), currentBatchSize)
+					for _, f := range batch {
+						l.Debugln(">", f)
+					}
+				}
 				if err = conn.Index(folder, batch, 0, nil); err != nil {
 					return false
 				}
-				l.Debugf("sendIndexes for %s-%s/%q: %d files (<%d bytes) (initial index)", deviceID, name, folder, len(batch), currentBatchSize)
 				initial = false
 			} else {
+				if shouldDebug() {
+					l.Debugf("sendIndexes for %s-%s/%q: %d files (<%d bytes) (batched update)", deviceID, name, folder, len(batch), currentBatchSize)
+					for _, f := range batch {
+						l.Debugln(">", f)
+					}
+				}
 				if err = conn.IndexUpdate(folder, batch, 0, nil); err != nil {
 					return false
 				}
-				l.Debugf("sendIndexes for %s-%s/%q: %d files (<%d bytes) (batched update)", deviceID, name, folder, len(batch), currentBatchSize)
 			}
 
 			batch = make([]protocol.FileInfo, 0, indexBatchSize)
@@ -1150,15 +1165,21 @@ func sendIndexTo(initial bool, minLocalVer int64, conn protocol.Connection, fold
 	})
 
 	if initial && err == nil {
-		err = conn.Index(folder, batch, 0, nil)
-		if err == nil {
+		if shouldDebug() {
 			l.Debugf("sendIndexes for %s-%s/%q: %d files (small initial index)", deviceID, name, folder, len(batch))
+			for _, f := range batch {
+				l.Debugln(">", f)
+			}
 		}
+		err = conn.Index(folder, batch, 0, nil)
 	} else if len(batch) > 0 && err == nil {
-		err = conn.IndexUpdate(folder, batch, 0, nil)
-		if err == nil {
+		if shouldDebug() {
 			l.Debugf("sendIndexes for %s-%s/%q: %d files (last batch)", deviceID, name, folder, len(batch))
+			for _, f := range batch {
+				l.Debugln(">", f)
+			}
 		}
+		err = conn.IndexUpdate(folder, batch, 0, nil)
 	}
 
 	return maxLocalVer, err
@@ -1756,17 +1777,6 @@ func (m *Model) Availability(folder, file string) []protocol.DeviceID {
 		}
 	}
 	return availableDevices
-}
-
-// BringToFront bumps the given files priority in the job queue.
-func (m *Model) BringToFront(folder, file string) {
-	m.pmut.RLock()
-	defer m.pmut.RUnlock()
-
-	runner, ok := m.folderRunners[folder]
-	if ok {
-		runner.BringToFront(file)
-	}
 }
 
 // CheckFolderHealth checks the folder for common errors and returns the
