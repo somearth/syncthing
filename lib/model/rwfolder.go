@@ -65,6 +65,7 @@ type rwFolder struct {
 	remoteIndex chan struct{} // An index update was received, we should re-evaluate needs
 
 	currentChangeSet    *changeset.ChangeSet
+	currentTracker      *currentTracker
 	currentChangeSetMut sync.Mutex
 }
 
@@ -353,15 +354,17 @@ func (p *rwFolder) pullerIteration(ignores *ignore.Matcher) (int, error) {
 	cs.TempNamer = defTempNamer
 
 	// Create the database updater and event emitter things, who each listen
-	// to progress updates from the changeset.
+	// to progress updates from the changeset. Also the currentTracker that we
+	// use to keep track of files currently being processed.
 
 	dbUpdater := newDatabaseUpdater(p.folder, p.model)
 	defer dbUpdater.Close() // also implicitly awaits db commit of all changes
-
 	eventEmitter := newProgressTracker(p.folder)
+	currentTracker := newCurrentTracker()
 	cs.Progresser = multiProgresser{
 		dbUpdater,
 		eventEmitter,
+		currentTracker,
 	}
 
 	// Set the versioner (archiver) if we have one.
@@ -445,6 +448,7 @@ func (p *rwFolder) pullerIteration(ignores *ignore.Matcher) (int, error) {
 	// user can request order changes while Apply is running.
 	p.currentChangeSetMut.Lock()
 	p.currentChangeSet = cs
+	p.currentTracker = currentTracker
 	p.currentChangeSetMut.Unlock()
 
 	err := cs.Apply()
@@ -452,6 +456,7 @@ func (p *rwFolder) pullerIteration(ignores *ignore.Matcher) (int, error) {
 	// Unpublish it once we're done.
 	p.currentChangeSetMut.Lock()
 	p.currentChangeSet = nil
+	p.currentTracker = nil
 	p.currentChangeSetMut.Unlock()
 
 	return changed, err
@@ -471,11 +476,13 @@ func (p *rwFolder) BringToFront(filename string) {
 func (p *rwFolder) Jobs() (inProgress []string, queued []string) {
 	p.currentChangeSetMut.Lock()
 	cs := p.currentChangeSet
+	ct := p.currentTracker
 	p.currentChangeSetMut.Unlock()
 
 	if cs != nil {
-		// TODO: Use one of the progresser things to track the in progress files.
-		return nil, cs.QueueNames()
+		// p.currentChangeSet and p.currentTracker are updated together so
+		// either both are nil or none are.
+		return ct.Current(), cs.QueueNames()
 	}
 	return nil, nil
 }
