@@ -58,17 +58,6 @@ type versionList struct {
 	versions []fileVersion
 }
 
-// to deserialize v0.12 database format
-type oldFileVersion struct {
-	version protocol.Vector
-	device  []byte
-}
-
-// to deserialize v0.12 database format
-type oldVersionList struct {
-	versions []oldFileVersion
-}
-
 func (l versionList) String() string {
 	var b bytes.Buffer
 	b.WriteString("[")

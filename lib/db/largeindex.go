@@ -13,8 +13,7 @@ import (
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
-// A largeIndex is an in memory bidirectional []byte to uint64 map. It is
-// database backed.
+// A largeIndex is a database backed bidirectional []byte to uint64 map.
 type largeIndex struct {
 	db        *Instance
 	keyPrefix []byte
@@ -35,7 +34,7 @@ func newLargeIndex(db *Instance, prefix []byte) *largeIndex {
 }
 
 // ID returns the index number for the given byte slice, allocating a new one
-// and persisting this to the database if necessary.
+// if necessary.
 func (i *largeIndex) ID(val []byte) uint64 {
 	i.mut.Lock()
 	defer i.mut.Unlock()

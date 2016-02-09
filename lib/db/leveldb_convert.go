@@ -4,11 +4,15 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this file,
 // You can obtain one at http://mozilla.org/MPL/2.0/.
 
+//go:generate -command genxdr go run ../../Godeps/_workspace/src/github.com/calmh/xdr/cmd/genxdr/main.go
+//go:generate genxdr -o leveldb_convert_xdr.go leveldb_convert.go
+
 package db
 
 import (
 	"bytes"
 
+	"github.com/syncthing/syncthing/lib/protocol"
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
@@ -120,4 +124,13 @@ func oldFromBlockKey(data []byte) (string, string) {
 		return string(slice[:izero]), file
 	}
 	return string(slice), file
+}
+
+type oldFileVersion struct {
+	version protocol.Vector
+	device  []byte
+}
+
+type oldVersionList struct {
+	versions []oldFileVersion
 }
