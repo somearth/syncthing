@@ -193,6 +193,7 @@ func (s *apiService) Serve() {
 
 	// The POST handlers
 	postRestMux := http.NewServeMux()
+	postRestMux.HandleFunc("/rest/db/prio", s.postDBPrio)                      // folder file [perpage] [page]
 	postRestMux.HandleFunc("/rest/db/ignores", s.postDBIgnores)                // folder
 	postRestMux.HandleFunc("/rest/db/override", s.postDBOverride)              // folder
 	postRestMux.HandleFunc("/rest/db/scan", s.postDBScan)                      // folder [sub...] [delay]
@@ -1024,6 +1025,14 @@ func (s *apiService) postDBScan(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+}
+
+func (s *apiService) postDBPrio(w http.ResponseWriter, r *http.Request) {
+	qs := r.URL.Query()
+	folder := qs.Get("folder")
+	file := qs.Get("file")
+	s.model.BringToFront(folder, file)
+	s.getDBNeed(w, r)
 }
 
 func (s *apiService) getQR(w http.ResponseWriter, r *http.Request) {

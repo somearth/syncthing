@@ -48,6 +48,7 @@ type service interface {
 	Serve()
 	Stop()
 	Jobs() ([]string, []string) // In progress, Queued
+	BringToFront(string)
 	DelayScan(d time.Duration)
 	IndexUpdated() // Remote index was updated notification
 	Scan(subs []string) error
@@ -1777,6 +1778,17 @@ func (m *Model) Availability(folder, file string) []protocol.DeviceID {
 		}
 	}
 	return availableDevices
+}
+
+// BringToFront bumps the given files priority in the job queue.
+func (m *Model) BringToFront(folder, file string) {
+	m.pmut.RLock()
+	defer m.pmut.RUnlock()
+
+	runner, ok := m.folderRunners[folder]
+	if ok {
+		runner.BringToFront(file)
+	}
 }
 
 // CheckFolderHealth checks the folder for common errors and returns the
