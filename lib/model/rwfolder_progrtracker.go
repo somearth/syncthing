@@ -14,6 +14,10 @@ import (
 	"github.com/syncthing/syncthing/lib/sync"
 )
 
+const (
+	progressEventInterval = 2500 * time.Millisecond
+)
+
 // The progressTracker generates ItemStarted, ItemFinished and
 // DownloadProgress events based on the progress information received from the
 // ChangeSet.
@@ -44,7 +48,7 @@ func (p *progressTracker) Progress(file protocol.FileInfo, copied, requested, do
 	cur.Pulled += downloaded
 	p.files[file.Name] = cur
 
-	if time.Since(p.lastEmit) > 2*time.Second {
+	if time.Since(p.lastEmit) > progressEventInterval {
 		p.emitDownloadProgress()
 	}
 	p.mut.Unlock()
@@ -58,7 +62,7 @@ func (p *progressTracker) Completed(file protocol.FileInfo, err error) {
 	p.mut.Lock()
 	delete(p.files, file.Name)
 
-	if time.Since(p.lastEmit) > 2*time.Second {
+	if time.Since(p.lastEmit) > progressEventInterval {
 		p.emitDownloadProgress()
 	}
 	p.mut.Unlock()
