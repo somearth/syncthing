@@ -324,28 +324,23 @@ func (c *ChangeSet) Size() int {
 // progressAccount calls fn(f) and returns it's return value, while ensuring
 // that the Progresser is called appropriately before and after.
 func (c *ChangeSet) progressAccount(fn func(protocol.FileInfo) *opError, f fileInfo) *opError {
-	if f.synthetic {
+	if f.synthetic || c.Progresser == nil {
 		// This is a file operation we inserted into the queue ourselves to
-		// satisfy dependencies. We should not report status on it to the
-		// outside world.
+		// satisfy dependencies, or we are not required to report progress at
+		// all.
 		return fn(f.FileInfo)
 	}
 
-	if c.Progresser != nil {
-		c.Progresser.Started(f.FileInfo)
-	}
+	c.Progresser.Started(f.FileInfo)
 
 	err := fn(f.FileInfo)
 	if err != nil {
-		if c.Progresser != nil {
-			c.Progresser.Completed(f.FileInfo, err)
-		}
+		c.Progresser.Completed(f.FileInfo, err)
 		return err
 	}
 
-	if c.Progresser != nil {
-		c.Progresser.Completed(f.FileInfo, nil)
-	}
+	c.Progresser.Completed(f.FileInfo, nil)
+
 	return nil
 }
 

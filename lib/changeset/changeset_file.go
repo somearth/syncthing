@@ -31,10 +31,6 @@ func (c *ChangeSet) writeFile(f protocol.FileInfo) *opError {
 			// We have a CurrentFiler and it returned an existing file for
 			// the one we are about to replace.
 
-			// Check if we are in conflict (i.e., the file has been
-			// concurrently modified).
-			inConflict = curFile.Version.Concurrent(f.Version)
-
 			// Check that the modification time and size matches, otherwise
 			// return an error indicating that we need a rescan before we can
 			// do this change.
@@ -54,6 +50,10 @@ func (c *ChangeSet) writeFile(f protocol.FileInfo) *opError {
 					}
 				}
 			}
+
+			// Check if we are in conflict (i.e., the file has been
+			// concurrently modified).
+			inConflict = curFile.Version.Concurrent(f.Version)
 
 			// Check if the hash of the existing file is equal to the current
 			// one. If so, we just update the metadata.
