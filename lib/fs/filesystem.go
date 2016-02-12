@@ -29,3 +29,5 @@ type WriteOnlyFile interface {
 	io.WriterAt
 	io.Closer
 }
+
+var DefaultFilesystem = ExtendedFilesystem{BasicFilesystem{}}

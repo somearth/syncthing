@@ -12,8 +12,6 @@ import (
 	"github.com/syncthing/syncthing/lib/osutil"
 )
 
-var DefaultFilesystem = ExtendedFilesystem{BasicFilesystem{}}
-
 // The ExtendedFilesystem implements some methods by delegating to package
 // osutil, thereby working around some operating specific issues.
 type ExtendedFilesystem struct {
