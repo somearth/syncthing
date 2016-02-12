@@ -16,6 +16,7 @@ import (
 
 	"time"
 
+	"github.com/syncthing/syncthing/lib/fs"
 	"github.com/syncthing/syncthing/lib/osutil"
 	"github.com/syncthing/syncthing/lib/protocol"
 	"github.com/syncthing/syncthing/lib/scanner"
@@ -324,7 +325,7 @@ func (c *ChangeSet) moveForConflict(name string) error {
 	return err
 }
 
-func (c *ChangeSet) openTempFile(tempPath string, reuse bool, size int64) (WriteOnlyFile, error) {
+func (c *ChangeSet) openTempFile(tempPath string, reuse bool, size int64) (fs.WriteOnlyFile, error) {
 	excl := false
 
 	if !reuse {

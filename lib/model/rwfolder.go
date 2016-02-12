@@ -17,6 +17,7 @@ import (
 	"github.com/syncthing/syncthing/lib/config"
 	"github.com/syncthing/syncthing/lib/db"
 	"github.com/syncthing/syncthing/lib/events"
+	"github.com/syncthing/syncthing/lib/fs"
 	"github.com/syncthing/syncthing/lib/ignore"
 	"github.com/syncthing/syncthing/lib/protocol"
 	"github.com/syncthing/syncthing/lib/scanner"
@@ -402,7 +403,7 @@ func (p *rwFolder) pullerIteration(ignores *ignore.Matcher) (int, error) {
 	// Set up the virtual mtime store
 
 	mtimeKVStore := db.NewNamespacedKV(p.model.db, string(db.KeyTypeVirtualMtime)+p.folder)
-	cs.Filesystem = changeset.NewMtimeFS(mtimeKVStore)
+	cs.Filesystem = fs.NewMtimeFS(mtimeKVStore)
 
 	// Grab the files we need to process.
 

@@ -11,6 +11,7 @@ import (
 	"math/rand"
 	"sort"
 
+	"github.com/syncthing/syncthing/lib/fs"
 	"github.com/syncthing/syncthing/lib/protocol"
 	"github.com/syncthing/syncthing/lib/sync"
 )
@@ -89,7 +90,7 @@ type ChangeSet struct {
 	NetworkRequester *AsyncRequester // needed to request blocks from the network
 	CurrentFiler     CurrentFiler    // used for conflict detection and metadata shortcut
 	Archiver         Archiver        // used for archiving old versions
-	Filesystem       Filesystem      // handles low level filesystem operations
+	Filesystem       fs.Filesystem   // handles low level filesystem operations
 	Progresser       Progresser      // used to report per file progress data and completion
 
 	mut           sync.Mutex
@@ -112,7 +113,7 @@ func New(rootPath string, maxConflicts int) *ChangeSet {
 		rootPath:      rootPath,
 		maxConflicts:  maxConflicts,
 		deletedHashes: make(map[string]protocol.FileInfo),
-		Filesystem:    DefaultFilesystem,
+		Filesystem:    fs.DefaultFilesystem,
 		mut:           sync.NewMutex(),
 	}
 }
