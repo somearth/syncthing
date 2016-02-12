@@ -241,7 +241,7 @@ func (c *ChangeSet) deleteFile(f protocol.FileInfo) *opError {
 			// Things that don't exist are removed
 			return nil
 		}
-		if _, err := os.Lstat(realPath); err != nil {
+		if _, err := c.Filesystem.Lstat(realPath); err != nil {
 			// Things that we can't stat don't exist
 			return nil
 		}
@@ -324,11 +324,11 @@ func (c *ChangeSet) moveForConflict(name string) error {
 	return err
 }
 
-func (c *ChangeSet) openTempFile(tempPath string, reuse bool, size int64) (*os.File, error) {
-	flags := os.O_WRONLY
+func (c *ChangeSet) openTempFile(tempPath string, reuse bool, size int64) (WriteOnlyFile, error) {
+	excl := false
 
 	if !reuse {
-		flags |= os.O_CREATE | os.O_EXCL
+		excl = true
 
 		// Ensure that the parent directory is writable. This is
 		// osutil.InWritableDir except we need to do more stuff so we
@@ -358,12 +358,9 @@ func (c *ChangeSet) openTempFile(tempPath string, reuse bool, size int64) (*os.F
 		c.Filesystem.Chmod(tempPath, 0666)
 	}
 
-	fd, err := os.OpenFile(tempPath, flags, 0666)
+	fd, err := c.Filesystem.OpenWrite(tempPath, excl, size)
 	if err != nil {
 		return nil, fmt.Errorf("openTempFile: open (reuse=%v): %v", reuse, err)
-	}
-	if err := fd.Truncate(size); err != nil {
-		return nil, err
 	}
 
 	return fd, nil
