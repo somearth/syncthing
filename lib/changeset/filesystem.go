@@ -16,6 +16,7 @@ type Filesystem interface {
 	Remove(name string) error
 	Rename(oldpath, newpath string) error
 	Stat(name string) (os.FileInfo, error)
+	DirNames(path string) ([]string, error)
 }
 
 var DefaultFilesystem = ExtendedFilesystem{BasicFilesystem{}}
@@ -67,4 +68,19 @@ func (BasicFilesystem) Rename(oldpath, newpath string) error {
 
 func (BasicFilesystem) Stat(name string) (os.FileInfo, error) {
 	return os.Stat(name)
+}
+
+func (BasicFilesystem) DirNames(path string) ([]string, error) {
+	fd, err := os.OpenFile(path, os.O_RDONLY, 0777)
+	if err != nil {
+		return nil, err
+	}
+	defer fd.Close()
+
+	names, err := fd.Readdirnames(-1)
+	if err != nil {
+		return nil, err
+	}
+
+	return names, nil
 }

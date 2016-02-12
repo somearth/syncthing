@@ -297,15 +297,9 @@ func (c *ChangeSet) moveForConflict(name string) error {
 		// so on).
 
 		dir := filepath.Dir(name)
-		dirFd, dirErr := os.OpenFile(dir, os.O_RDONLY, 0777)
+		names, dirErr := c.Filesystem.DirNames(dir)
 		if dirErr != nil {
 			// Return the result of rename from above; never mind this failure
-			return err
-		}
-		defer dirFd.Close()
-
-		names, dirErr := dirFd.Readdirnames(-1)
-		if dirErr != nil {
 			return err
 		}
 
