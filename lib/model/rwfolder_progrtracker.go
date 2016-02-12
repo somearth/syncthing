@@ -28,6 +28,17 @@ type progressTracker struct {
 	mut      sync.Mutex                // protects the above
 }
 
+// A momentary state representing the progress of the puller
+type pullerProgress struct {
+	Total      int   `json:"total"`
+	Reused     int   `json:"reused"`
+	Copied     int   `json:"copied"`
+	Pulled     int   `json:"pulled"`
+	Pulling    int   `json:"pulling"`
+	BytesDone  int64 `json:"bytesDone"`
+	BytesTotal int64 `json:"bytesTotal"`
+}
+
 func newProgressTracker(folder string) *progressTracker {
 	return &progressTracker{
 		folder: folder,
@@ -43,7 +54,7 @@ func (p *progressTracker) Started(file protocol.FileInfo) {
 func (p *progressTracker) Progress(file protocol.FileInfo, copied, requested, downloaded int) {
 	p.mut.Lock()
 	cur := p.files[file.Name]
-	cur.CopiedFromOrigin += copied
+	cur.Copied += copied
 	cur.Pulling += requested
 	cur.Pulled += downloaded
 	p.files[file.Name] = cur
