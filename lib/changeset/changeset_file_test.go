@@ -301,9 +301,9 @@ func TestWriteFileReuseInReadOnlyDir(t *testing.T) {
 	}
 }
 
-func TestWriteFileReviveDir(t *testing.T) {
-	// writeFile should be able to write a file in a directory that doesn't
-	// exist yet.
+func TestWriteFileMissingDirFails(t *testing.T) {
+	// writeFile should not be able to write a file in a directory that
+	// doesn't exist yet.
 
 	os.RemoveAll("testdata")
 	if err := os.Mkdir("testdata", 0777); err != nil {
@@ -314,8 +314,13 @@ func TestWriteFileReviveDir(t *testing.T) {
 	file := testFile
 	file.Name = "testdir/test"
 
-	if err := verifyWrite(file); err != nil {
-		t.Error(err)
+	cs := New("testdata", 0)
+	cs.LocalRequester = fakeRequester(testBlocks[1:2])
+	cs.NetworkRequester = NewAsyncRequester(fakeRequester(testBlocks[2:]), 4)
+	cs.TempNamer = defTempNamer
+
+	if err := cs.writeFile(file); err == nil {
+		t.Error("Unexpected nil error from writeFile")
 	}
 }
 

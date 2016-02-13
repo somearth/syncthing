@@ -326,29 +326,7 @@ func (c *ChangeSet) moveForConflict(name string) error {
 }
 
 func (c *ChangeSet) openTempFile(tempPath string, reuse bool, size int64) (fs.WriteOnlyFile, error) {
-	excl := false
-
-	if !reuse {
-		excl = true
-
-		// Ensure that the parent directory is writable. This is
-		// osutil.InWritableDir except we need to do more stuff so we
-		// duplicate it here.
-		dir := filepath.Dir(tempPath)
-		if info, err := c.Filesystem.Stat(dir); err != nil {
-			if os.IsNotExist(err) {
-				if err := c.Filesystem.MkdirAll(dir, 0755); err != nil {
-					return nil, fmt.Errorf("openTempFile: revive dir: %v", err)
-				}
-			} else {
-				return nil, fmt.Errorf("openTempFile: stat dir: %v", err)
-			}
-		} else if info.Mode()&0200 == 0 {
-			if err := c.Filesystem.Chmod(dir, 0755); err == nil {
-				defer c.Filesystem.Chmod(dir, info.Mode().Perm())
-			}
-		}
-	} else {
+	if reuse {
 		// With sufficiently bad luck when exiting or crashing, we may have
 		// had time to chmod the temp file to read only state but not yet
 		// moved it to it's final name. This leaves us with a read only temp
@@ -357,9 +335,22 @@ func (c *ChangeSet) openTempFile(tempPath string, reuse bool, size int64) (fs.Wr
 		// Ignore the error here as we may be on a filesystem that doesn't
 		// support it and we'll fail nicely on the next operation anyhow.
 		c.Filesystem.Chmod(tempPath, 0666)
+	} else {
+		// We need to be able to create a temp file in the directory, so it
+		// must be writable to us. If it's not, make it so for the duration of
+		// the operation.
+		dir := filepath.Dir(tempPath)
+		if info, err := c.Filesystem.Stat(dir); err == nil && info.Mode()&0200 == 0 {
+			if err := c.Filesystem.Chmod(dir, 0755); err == nil {
+				defer c.Filesystem.Chmod(dir, info.Mode().Perm())
+			}
+		}
 	}
 
-	fd, err := c.Filesystem.OpenWrite(tempPath, excl, size)
+	// If we are not going to reuse a file we don't expect the file to exist
+	// already. We enforce this assumption by setting O_EXCL on the open.
+	oEXCL := !reuse
+	fd, err := c.Filesystem.OpenWrite(tempPath, oEXCL, size)
 	if err != nil {
 		return nil, fmt.Errorf("openTempFile: open (reuse=%v): %v", reuse, err)
 	}

@@ -33,7 +33,18 @@ func TestWriteDeleteDirectoryDeep(t *testing.T) {
 
 	deepDir := testDir
 	deepDir.Name = "foo/bar/baz"
-	testWriteDeleteDirectory(t, deepDir)
+
+	cs := New("testdata", 0)
+	cs.TempNamer = defTempNamer
+	cs.LocalRequester = fakeRequester(testBlocks[:])
+	cs.NetworkRequester = NewAsyncRequester(errorRequester{t}, 4)
+
+	// Applying the change set will fail as we are missing intermediate
+	// directories.
+
+	if err := cs.writeDir(deepDir); err == nil {
+		t.Error("Unexpected nil error in writeDir")
+	}
 }
 
 func TestWriteDeleteDirectoryReadOnly(t *testing.T) {

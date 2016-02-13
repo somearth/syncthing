@@ -18,8 +18,13 @@ type ExtendedFilesystem struct {
 	Filesystem
 }
 
-func (ExtendedFilesystem) MkdirAll(path string, perm os.FileMode) error {
-	return osutil.MkdirAll(path, perm)
+func (ExtendedFilesystem) Mkdir(path string, perm os.FileMode) error {
+	mkdir := func(path string) error {
+		// Closure over perm to create the required function signature for
+		// InWriteableDir
+		return os.Mkdir(path, perm)
+	}
+	return osutil.InWritableDir(mkdir, path)
 }
 
 func (ExtendedFilesystem) Remove(name string) error {

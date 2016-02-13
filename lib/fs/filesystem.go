@@ -17,7 +17,7 @@ type Filesystem interface {
 	Chmod(name string, mode os.FileMode) error
 	Chtimes(name string, atime time.Time, mtime time.Time) error
 	Lstat(name string) (os.FileInfo, error)
-	MkdirAll(path string, perm os.FileMode) error
+	Mkdir(path string, perm os.FileMode) error
 	Remove(name string) error
 	Rename(oldpath, newpath string) error
 	Stat(name string) (os.FileInfo, error)

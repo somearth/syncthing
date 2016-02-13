@@ -22,8 +22,8 @@ func (BasicFilesystem) Chtimes(name string, atime time.Time, mtime time.Time) er
 	return os.Chtimes(name, atime, mtime)
 }
 
-func (BasicFilesystem) MkdirAll(path string, perm os.FileMode) error {
-	return os.MkdirAll(path, perm)
+func (BasicFilesystem) Mkdir(path string, perm os.FileMode) error {
+	return os.Mkdir(path, perm)
 }
 
 func (BasicFilesystem) Lstat(name string) (os.FileInfo, error) {

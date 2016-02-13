@@ -19,44 +19,43 @@ const retainBits = os.ModeSetuid | os.ModeSetgid | os.ModeSticky
 
 func (c *ChangeSet) writeDir(d protocol.FileInfo) *opError {
 	realPath := filepath.Join(c.rootPath, d.Name)
-	mode := os.FileMode(d.Flags & 0777)
-	if d.Flags&protocol.FlagNoPermBits != 0 {
-		// Ignore permissions is set, so use a default set of bits (modified
-		// by umask later on)
-		mode = 0777
-	}
 
-	// Check if the directory already exists, if so just set the permissions, unless we shouldn't do that either
-	if info, err := c.Filesystem.Lstat(realPath); err == nil && info.IsDir() {
-		if d.Flags&protocol.FlagNoPermBits == 0 {
-			mode = mode | info.Mode()&retainBits
-			if err = c.Filesystem.Chmod(realPath, mode); err != nil {
-				return &opError{file: d.Name, op: "writeDir Chmod", err: err}
-			}
+	if d.Flags&protocol.FlagNoPermBits != 0 {
+		// If the directory already exists we have nothing further to do, as
+		// we should not touch the permission bits.
+		if info, err := c.Filesystem.Lstat(realPath); err == nil && info.IsDir() {
+			return nil
+		}
+
+		// Ignore permissions is set, so use a default set of bits (filtered
+		// by umask by the OS at create time).
+		mode := os.FileMode(0777)
+		if err := c.Filesystem.Mkdir(realPath, mode); err != nil {
+			return &opError{file: d.Name, op: "writeDir Mkdir", err: err}
 		}
 		return nil
 	}
 
-	// First we try a normal MkdirAll which will attempt to create all the
-	// directories up to this point.
-	err := c.Filesystem.MkdirAll(realPath, mode)
-	if os.IsPermission(err) {
-		// If that failed due to permissions error, we retry with an
-		// InWritableDir call. This succeeds if we were trying to mkdir
-		// "foo/bar" and "foo" is read only, but it fails if we try to mkdir
-		// "foo/bar/baz", "foo/bar" doesn't exist and "foo" is readonly. That
-		// should be unusual...
-		err = osutil.InWritableDir(func(path string) error {
-			return c.Filesystem.MkdirAll(path, mode)
-		}, realPath)
+	// Use the permission bits from the FileInfo.
+	mode := os.FileMode(d.Flags & 0777)
+
+	// Check if the directory already exists and if so just set the
+	// permissions. If bits from the set in retainBits are set we make sure
+	// they are kept set.
+	if info, err := c.Filesystem.Lstat(realPath); err == nil && info.IsDir() {
+		mode = mode | info.Mode()&retainBits
+		if err = c.Filesystem.Chmod(realPath, mode); err != nil {
+			return &opError{file: d.Name, op: "writeDir Chmod", err: err}
+		}
+		return nil
 	}
 
-	if err == nil {
-		err = c.Filesystem.Chmod(realPath, mode)
+	// Create the missing directory and set the permission bits.
+	if err := c.Filesystem.Mkdir(realPath, mode); err != nil {
+		return &opError{file: d.Name, op: "writeDir Mkdir", err: err}
 	}
-
-	if err != nil {
-		return &opError{file: d.Name, op: "writeDir MkdirAll", err: err}
+	if err := c.Filesystem.Chmod(realPath, mode); err != nil {
+		return &opError{file: d.Name, op: "writeDir Chmod", err: err}
 	}
 
 	return nil

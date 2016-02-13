@@ -44,8 +44,8 @@ func TestUpdateDirectoryIgnorePerms(t *testing.T) {
 
 	if info, err := os.Lstat("testdata/dir"); err != nil {
 		t.Fatal(err)
-	} else if info.Mode()&0777 == 0777&^umask {
-		t.Errorf("Directory should not have 0%o permissions", info.Mode())
+	} else if info.Mode()&0777 != 0777&^umask {
+		t.Errorf("Directory should have 0%o, not 0%o permissions", 0777&^umask, info.Mode()&0777)
 	}
 }
 
@@ -72,7 +72,7 @@ func TestWriteDirectoryOverrideUmask(t *testing.T) {
 	if info, err := os.Lstat("testdata/dir"); err != nil {
 		t.Fatal(err)
 	} else if info.Mode()&0777 != os.FileMode(testDir.Flags&0777) {
-		t.Errorf("Directory should not have 0%o permissions", info.Mode())
+		t.Errorf("Directory should have 0%o, not 0%o permissions", testDir.Flags&0777, info.Mode()&0777)
 	}
 }
 
