@@ -60,7 +60,7 @@ func (BasicFilesystem) DirNames(path string) ([]string, error) {
 // OpenWrite returns a writeable file. The file is created if it does not
 // exist. If excl is true, O_EXCL is set. If size >= 0, the file is truncated
 // to size.
-func (BasicFilesystem) OpenWrite(path string, excl bool, size int64) (WriteOnlyFile, error) {
+func (BasicFilesystem) OpenWrite(path string, excl bool, size int64) (File, error) {
 	flags := os.O_WRONLY | os.O_CREATE
 	if excl {
 		flags |= os.O_EXCL

@@ -325,7 +325,7 @@ func (c *ChangeSet) moveForConflict(name string) error {
 	return err
 }
 
-func (c *ChangeSet) openTempFile(tempPath string, reuse bool, size int64) (fs.WriteOnlyFile, error) {
+func (c *ChangeSet) openTempFile(tempPath string, reuse bool, size int64) (fs.File, error) {
 	if reuse {
 		// With sufficiently bad luck when exiting or crashing, we may have
 		// had time to chmod the temp file to read only state but not yet

@@ -22,10 +22,10 @@ type Filesystem interface {
 	Rename(oldpath, newpath string) error
 	Stat(name string) (os.FileInfo, error)
 	DirNames(path string) ([]string, error)
-	OpenWrite(path string, excl bool, size int64) (WriteOnlyFile, error)
+	OpenWrite(path string, excl bool, size int64) (File, error)
 }
 
-type WriteOnlyFile interface {
+type File interface {
 	io.WriterAt
 	io.Closer
 }
