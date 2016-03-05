@@ -22,12 +22,13 @@ type Filesystem interface {
 	Rename(oldpath, newpath string) error
 	Stat(name string) (os.FileInfo, error)
 	DirNames(path string) ([]string, error)
-	OpenWrite(path string, excl bool, size int64) (File, error)
+	OpenFile(path string, flag int) (File, error)
 }
 
 type File interface {
 	io.WriterAt
 	io.Closer
+	Truncate(size int64) error
 }
 
 var DefaultFilesystem = ExtendedFilesystem{BasicFilesystem{}}

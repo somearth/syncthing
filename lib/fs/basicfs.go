@@ -57,25 +57,6 @@ func (BasicFilesystem) DirNames(path string) ([]string, error) {
 	return names, nil
 }
 
-// OpenWrite returns a writeable file. The file is created if it does not
-// exist. If excl is true, O_EXCL is set. If size >= 0, the file is truncated
-// to size.
-func (BasicFilesystem) OpenWrite(path string, excl bool, size int64) (File, error) {
-	flags := os.O_WRONLY | os.O_CREATE
-	if excl {
-		flags |= os.O_EXCL
-	}
-	fd, err := os.OpenFile(path, flags, 0666)
-	if err != nil {
-		return nil, err
-	}
-
-	if size >= 0 {
-		if err := fd.Truncate(size); err != nil {
-			fd.Close()
-			return nil, err
-		}
-	}
-
-	return fd, nil
+func (BasicFilesystem) OpenFile(path string, flag int) (File, error) {
+	return os.OpenFile(path, flag, 0666)
 }

@@ -139,7 +139,7 @@ func (c *ChangeSet) Queue(f protocol.FileInfo) {
 			// versa. The existing item must be deleted before we can put the
 			// new one in place. Queue that as well; the ordering will be
 			// corrected later. If this is a replacement of a directory tree
-			// with a file, we should have deletes for all the childred as
+			// with a file, we should have deletes for all the children as
 			// well in this batch, and those will be taken care of before
 			// this delete due to the ordering.
 			cur.Blocks = nil

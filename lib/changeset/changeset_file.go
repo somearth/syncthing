@@ -349,10 +349,20 @@ func (c *ChangeSet) openTempFile(tempPath string, reuse bool, size int64) (fs.Fi
 
 	// If we are not going to reuse a file we don't expect the file to exist
 	// already. We enforce this assumption by setting O_EXCL on the open.
-	oEXCL := !reuse
-	fd, err := c.Filesystem.OpenWrite(tempPath, oEXCL, size)
+	flag := os.O_WRONLY | os.O_CREATE
+	if !reuse {
+		flag |= os.O_EXCL
+	}
+
+	fd, err := c.Filesystem.OpenFile(tempPath, flag)
 	if err != nil {
 		return nil, fmt.Errorf("openTempFile: open (reuse=%v): %v", reuse, err)
+	}
+
+	if size >= 0 {
+		// Ignore errors here and hope for the best. SMB mounts and similar don't
+		// seem to support it.
+		fd.Truncate(size)
 	}
 
 	return fd, nil
