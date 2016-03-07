@@ -12,6 +12,14 @@ import (
 	"time"
 )
 
+type LinkTargetType int
+
+const (
+	LinkTargetFile LinkTargetType = iota
+	LinkTargetDirectory
+	LinkTargetUnknown
+)
+
 // The Filesystem interface abstracts access to the file system.
 type Filesystem interface {
 	Chmod(name string, mode os.FileMode) error
@@ -23,6 +31,10 @@ type Filesystem interface {
 	Stat(name string) (os.FileInfo, error)
 	DirNames(path string) ([]string, error)
 	OpenFile(path string, flag int) (File, error)
+	SymlinksSupported() bool
+	CreateSymlink(path, target string, tt LinkTargetType) error
+	ChangeSymlinkType(path string, tt LinkTargetType) error
+	ReadSymlink(path string) (string, LinkTargetType, error)
 }
 
 type File interface {
