@@ -32,7 +32,7 @@ var (
 	modkernel32            = syscall.NewLazyDLL("kernel32.dll")
 	procDeviceIoControl    = modkernel32.NewProc("DeviceIoControl")
 	procCreateSymbolicLink = modkernel32.NewProc("CreateSymbolicLinkW")
-	supported              = false
+	symlinksSupported      = false
 )
 
 func init() {
@@ -41,7 +41,7 @@ func init() {
 			// Ensure that the supported flag is disabled when we hit an
 			// error, even though it should already be. Also, silently swallow
 			// the error since it's fine for a system not to support symlinks.
-			Supported = false
+			symlinksSupported = false
 		}
 	}()
 
@@ -68,11 +68,15 @@ func init() {
 	if err != nil || osutil.NativeFilename(LinkTarget) != base || flags&protocol.FlagDirectory == 0 {
 		return
 	}
-	Supported = true
+	symlinksSupported = true
+}
+
+func DisableSymlinks() {
+	symlinksSupported = false
 }
 
 func (BasicFilesystem) SymlinksSupported() bool {
-	return supported
+	return symlinksSupported
 }
 
 func (BasicFilesystem) ReadSymlink(path string) (string, LinkTargetType, error) {

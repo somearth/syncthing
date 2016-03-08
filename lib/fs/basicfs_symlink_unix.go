@@ -10,8 +10,14 @@ package fs
 
 import "os"
 
+var symlinksSupported = true
+
+func DisableSymlinks() {
+	symlinksSupported = false
+}
+
 func (BasicFilesystem) SymlinksSupported() bool {
-	return true
+	return symlinksSupported
 }
 
 func (BasicFilesystem) CreateSymlink(path, target string, _ LinkTargetType) error {

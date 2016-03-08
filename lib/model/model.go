@@ -25,12 +25,12 @@ import (
 	"github.com/syncthing/syncthing/lib/config"
 	"github.com/syncthing/syncthing/lib/db"
 	"github.com/syncthing/syncthing/lib/events"
+	"github.com/syncthing/syncthing/lib/fs"
 	"github.com/syncthing/syncthing/lib/ignore"
 	"github.com/syncthing/syncthing/lib/osutil"
 	"github.com/syncthing/syncthing/lib/protocol"
 	"github.com/syncthing/syncthing/lib/scanner"
 	"github.com/syncthing/syncthing/lib/stats"
-	"github.com/syncthing/syncthing/lib/symlinks"
 	"github.com/syncthing/syncthing/lib/sync"
 	"github.com/syncthing/syncthing/lib/versioner"
 	"github.com/thejerf/suture"
@@ -841,7 +841,7 @@ func (m *Model) Request(deviceID protocol.DeviceID, folder, name string, offset 
 	var reader io.ReaderAt
 	var err error
 	if info, err := os.Lstat(fn); err == nil && info.Mode()&os.ModeSymlink != 0 {
-		target, _, err := symlinks.Read(fn)
+		target, _, err := fs.DefaultFilesystem.ReadSymlink(fn)
 		if err != nil {
 			l.Debugln("symlinks.Read:", err)
 			if os.IsNotExist(err) {
@@ -2050,7 +2050,7 @@ func filterIndex(folder string, fs []protocol.FileInfo, dropDeletes bool) []prot
 }
 
 func symlinkInvalid(folder string, fi db.FileIntf) bool {
-	if !symlinks.Supported && fi.IsSymlink() && !fi.IsInvalid() && !fi.IsDeleted() {
+	if !fs.DefaultFilesystem.SymlinksSupported() && fi.IsSymlink() && !fi.IsInvalid() && !fi.IsDeleted() {
 		symlinkWarning.Do(func() {
 			l.Warnln("Symlinks are disabled, unsupported or require Administrator privileges. This might cause your folder to appear out of sync.")
 		})

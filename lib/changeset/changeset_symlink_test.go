@@ -10,8 +10,8 @@ import (
 	"os"
 	"testing"
 
+	"github.com/syncthing/syncthing/lib/fs"
 	"github.com/syncthing/syncthing/lib/protocol"
-	"github.com/syncthing/syncthing/lib/symlinks"
 )
 
 func TestWriteSymlinkToDir(t *testing.T) {
@@ -39,14 +39,14 @@ func TestWriteSymlinkToDir(t *testing.T) {
 		t.Error(err)
 	}
 
-	target, targetType, err := symlinks.Read("testdata/symlink")
+	target, targetType, err := fs.DefaultFilesystem.ReadSymlink("testdata/symlink")
 	if err != nil {
 		t.Error(err)
 	}
 	if target != "target/of/symlink" {
 		t.Errorf("Incorrect target %q", target)
 	}
-	if targetType != symlinks.TargetDirectory {
+	if targetType != fs.LinkTargetDirectory {
 		t.Errorf("Incorrect target type %v", targetType)
 	}
 }
@@ -69,7 +69,7 @@ func TestWriteSymlinkToNonExistent(t *testing.T) {
 		t.Error(err)
 	}
 
-	target, targetType, err := symlinks.Read("testdata/symlink")
+	target, targetType, err := fs.DefaultFilesystem.ReadSymlink("testdata/symlink")
 	if err != nil {
 		t.Error(err)
 	}
@@ -79,7 +79,7 @@ func TestWriteSymlinkToNonExistent(t *testing.T) {
 
 	// Windows returns TargetFile, Unix returns TargetUnknown, for some
 	// reason...?
-	if targetType != symlinks.TargetUnknown && targetType != symlinks.TargetFile {
+	if targetType != fs.LinkTargetUnknown && targetType != fs.LinkTargetFile {
 		t.Errorf("Incorrect target type %v", targetType)
 	}
 }

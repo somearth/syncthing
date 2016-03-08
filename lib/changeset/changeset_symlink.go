@@ -11,13 +11,12 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/syncthing/syncthing/lib/fs"
 	"github.com/syncthing/syncthing/lib/osutil"
 	"github.com/syncthing/syncthing/lib/protocol"
-	"github.com/syncthing/syncthing/lib/symlinks"
 )
 
 func (c *ChangeSet) writeSymlink(f protocol.FileInfo) *opError {
-
 	realPath := filepath.Join(c.rootPath, f.Name)
 
 	if len(f.Blocks) != 1 {
@@ -43,14 +42,14 @@ func (c *ChangeSet) writeSymlink(f protocol.FileInfo) *opError {
 		return &opError{file: f.Name, op: "writeSymlink pull", err: err}
 	}
 
-	tt := symlinks.TargetFile
+	tt := fs.LinkTargetFile
 	if f.IsDirectory() {
-		tt = symlinks.TargetDirectory
+		tt = fs.LinkTargetDirectory
 	}
 
 	err = osutil.InWritableDir(func(realPath string) error {
 		c.Filesystem.Remove(realPath)
-		return symlinks.Create(realPath, string(buf), tt)
+		return c.Filesystem.CreateSymlink(realPath, string(buf), tt)
 	}, realPath)
 	if err != nil {
 		return &opError{file: f.Name, op: "writeSymlink create", err: err}

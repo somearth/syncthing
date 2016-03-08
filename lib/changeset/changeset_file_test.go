@@ -16,9 +16,9 @@ import (
 
 	"time"
 
+	"github.com/syncthing/syncthing/lib/fs"
 	"github.com/syncthing/syncthing/lib/protocol"
 	"github.com/syncthing/syncthing/lib/scanner"
-	"github.com/syncthing/syncthing/lib/symlinks"
 )
 
 func TestWriteFileNewNoSource(t *testing.T) {
@@ -532,14 +532,14 @@ func TestWriteSymlinkToFile(t *testing.T) {
 		t.Error(err)
 	}
 
-	target, targetType, err := symlinks.Read("testdata/symlink")
+	target, targetType, err := fs.DefaultFilesystem.ReadSymlink("testdata/symlink")
 	if err != nil {
 		t.Error(err)
 	}
 	if target != "target/of/symlink" {
 		t.Errorf("Incorrect target %q", target)
 	}
-	if targetType != symlinks.TargetFile {
+	if targetType != fs.LinkTargetFile {
 		t.Errorf("Incorrect target type %v", targetType)
 	}
 }

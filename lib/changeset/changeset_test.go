@@ -14,9 +14,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/syncthing/syncthing/lib/fs"
 	"github.com/syncthing/syncthing/lib/protocol"
 	"github.com/syncthing/syncthing/lib/scanner"
-	"github.com/syncthing/syncthing/lib/symlinks"
 )
 
 func TestChangeSetCreateDeleteFiles(t *testing.T) {
@@ -170,7 +170,7 @@ func TestChangeSetCreateDeleteSymlinks(t *testing.T) {
 	if err := os.MkdirAll("testdata/target/of/symlink", 0777); err != nil {
 		t.Fatal(err)
 	}
-	if err := symlinks.Create("testdata/symToDelete", "target/of/symlink", symlinks.TargetDirectory); err != nil {
+	if err := fs.DefaultFilesystem.CreateSymlink("testdata/symToDelete", "target/of/symlink", fs.LinkTargetDirectory); err != nil {
 		t.Fatal(err)
 	}
 
@@ -193,14 +193,14 @@ func TestChangeSetCreateDeleteSymlinks(t *testing.T) {
 	if err := cs.Apply(); err != nil {
 		t.Error(err.(ApplyError).Errors())
 	}
-	target, targetType, err := symlinks.Read("testdata/newSymlink")
+	target, targetType, err := fs.DefaultFilesystem.ReadSymlink("testdata/newSymlink")
 	if err != nil {
 		t.Error(err)
 	}
 	if target != "target/of/symlink" {
 		t.Errorf("Incorrect target %q", target)
 	}
-	if targetType != symlinks.TargetDirectory {
+	if targetType != fs.LinkTargetDirectory {
 		t.Errorf("Incorrect target type %v", targetType)
 	}
 	if _, err := os.Lstat("testdata/symToDelete"); !os.IsNotExist(err) {
