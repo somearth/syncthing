@@ -6,7 +6,7 @@
 
 // +build windows
 
-package symlinks
+package fs
 
 import (
 	"os"
