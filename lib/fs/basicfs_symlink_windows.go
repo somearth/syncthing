@@ -54,7 +54,7 @@ func init() {
 	path := filepath.Join(base, "symlinktest")
 	defer os.Remove(path)
 
-	err := Create(path, base, protocol.FlagDirectory)
+	err := DefaultFilesystem.CreateSymlink(path, base, protocol.FlagDirectory)
 	if err != nil {
 		return
 	}
@@ -64,7 +64,7 @@ func init() {
 		return
 	}
 
-	LinkTarget, flags, err := Read(path)
+	LinkTarget, flags, err := DefaultFilesystem.ReadSymlink(path)
 	if err != nil || osutil.NativeFilename(LinkTarget) != base || flags&protocol.FlagDirectory == 0 {
 		return
 	}
@@ -84,7 +84,7 @@ func (BasicFilesystem) ReadSymlink(path string) (string, LinkTargetType, error) 
 	if err != nil {
 		return "", LinkTargetUnknown, err
 	}
-	handle, err := syscall.CreateFile(ptr, 0, syscall.FILE_SHARE_READ|syscall.FILE_SHARE_WRITE|syscall.FILE_SHARE_DELETE, nil, syscall.OPEN_EXISTING, syscall.FILE_FLAG_BACKUP_SEMANTICS|Win32FileFlagOpenReparsePoint, 0)
+	handle, err := syscall.CreateFile(ptr, 0, syscall.FILE_SHARE_READ|syscall.FILE_SHARE_WRITE|syscall.FILE_SHARE_DELETE, nil, syscall.OPEN_EXISTING, syscall.FILE_FLAG_BACKUP_SEMANTICS|win32FileFlagOpenReparsePoint, 0)
 	if err != nil || handle == syscall.InvalidHandle {
 		return "", LinkTargetUnknown, err
 	}
@@ -92,7 +92,7 @@ func (BasicFilesystem) ReadSymlink(path string) (string, LinkTargetType, error) 
 	var ret uint16
 	var data reparseData
 
-	r1, _, err := syscall.Syscall9(procDeviceIoControl.Addr(), 8, uintptr(handle), Win32FsctlGetReparsePoint, 0, 0, uintptr(unsafe.Pointer(&data)), unsafe.Sizeof(data), uintptr(unsafe.Pointer(&ret)), 0, 0)
+	r1, _, err := syscall.Syscall9(procDeviceIoControl.Addr(), 8, uintptr(handle), win32FsctlGetReparsePoint, 0, 0, uintptr(unsafe.Pointer(&data)), unsafe.Sizeof(data), uintptr(unsafe.Pointer(&ret)), 0, 0)
 	if r1 == 0 {
 		return "", LinkTargetUnknown, err
 	}
@@ -106,7 +106,7 @@ func (BasicFilesystem) ReadSymlink(path string) (string, LinkTargetType, error) 
 		}
 	}
 
-	return osutil.NormalizedFilename(data.PrintName()), tt, nil
+	return osutil.NormalizedFilename(data.printName()), tt, nil
 }
 
 func (BasicFilesystem) CreateSymlink(source, LinkTarget string, tt LinkTargetType) error {
@@ -133,10 +133,10 @@ func (BasicFilesystem) CreateSymlink(source, LinkTarget string, tt LinkTargetTyp
 
 		stat, err := os.Stat(path)
 		if err == nil && stat.IsDir() {
-			mode = Win32SymbolicLinkFlagDirectory
+			mode = win32SymbolicLinkFlagDirectory
 		}
 	} else if tt == LinkTargetDirectory {
-		mode = Win32SymbolicLinkFlagDirectory
+		mode = win32SymbolicLinkFlagDirectory
 	}
 
 	r0, _, err := syscall.Syscall(procCreateSymbolicLink.Addr(), 3, uintptr(unsafe.Pointer(srcp)), uintptr(unsafe.Pointer(trgp)), uintptr(mode))
@@ -146,8 +146,8 @@ func (BasicFilesystem) CreateSymlink(source, LinkTarget string, tt LinkTargetTyp
 	return err
 }
 
-func (BasicFilesystem) ChangeSymlinkType(path string, tt LinkTargetType) error {
-	LinkTarget, exTt, err := Read(path)
+func (fs BasicFilesystem) ChangeSymlinkType(path string, tt LinkTargetType) error {
+	LinkTarget, exTt, err := fs.ReadSymlink(path)
 	if err != nil {
 		return err
 	}
@@ -164,7 +164,7 @@ func (BasicFilesystem) ChangeSymlinkType(path string, tt LinkTargetType) error {
 		// It should be a symlink as well hence no need to change permissions on
 		// the file.
 		os.Remove(path)
-		return Create(path, LinkTarget, tt)
+		return fs.CreateSymlink(path, LinkTarget, tt)
 	}, path)
 }
 
