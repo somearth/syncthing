@@ -31,8 +31,11 @@ func TestWriteFileNewNoSource(t *testing.T) {
 	}
 	defer os.RemoveAll("testdata")
 
-	cs := New("testdata", 0)
-	cs.TempNamer = defTempNamer
+	cs := New(Options{
+		RootPath:  "testdata",
+		TempNamer: defTempNamer,
+	})
+
 	err := cs.writeFile(testFile)
 	if err == nil {
 		t.Error("Unexpected nil error from writeFile with no sources")
@@ -49,10 +52,12 @@ func TestWriteFileNewErrorSource(t *testing.T) {
 	}
 	defer os.RemoveAll("testdata")
 
-	cs := New("testdata", 0)
-	cs.LocalRequester = fakeRequester(nil)
-	cs.NetworkRequester = NewAsyncRequester(fakeRequester(nil), 4)
-	cs.TempNamer = defTempNamer
+	cs := New(Options{
+		RootPath:         "testdata",
+		LocalRequester:   fakeRequester(nil),
+		NetworkRequester: NewAsyncRequester(fakeRequester(nil), 4),
+		TempNamer:        defTempNamer,
+	})
 	err := cs.writeFile(testFile)
 	if err == nil {
 		t.Error("Unexpected nil error from writeFile with no sources")
@@ -69,9 +74,11 @@ func TestWriteFileNewFromLocal(t *testing.T) {
 	}
 	defer os.RemoveAll("testdata")
 
-	cs := New("testdata", 0)
-	cs.LocalRequester = fakeRequester(testBlocks[:])
-	cs.TempNamer = defTempNamer
+	cs := New(Options{
+		RootPath:       "testdata",
+		LocalRequester: fakeRequester(testBlocks[:]),
+		TempNamer:      defTempNamer,
+	})
 	if err := cs.writeFile(testFile); err != nil {
 		t.Error("Unexpected error from writeFile with local source:", err)
 	}
@@ -96,9 +103,11 @@ func TestWriteFileNewFromNetwork(t *testing.T) {
 	}
 	defer os.RemoveAll("testdata")
 
-	cs := New("testdata", 0)
-	cs.NetworkRequester = NewAsyncRequester(fakeRequester(testBlocks[:]), 4)
-	cs.TempNamer = defTempNamer
+	cs := New(Options{
+		RootPath:         "testdata",
+		NetworkRequester: NewAsyncRequester(fakeRequester(testBlocks[:]), 4),
+		TempNamer:        defTempNamer,
+	})
 	if err := cs.writeFile(testFile); err != nil {
 		t.Error("Unexpected error from writeFile with local source:", err)
 	}
@@ -208,9 +217,11 @@ func TestWriteFileReuseOneBlock(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cs := New("testdata", 0)
-	cs.LocalRequester = fakeRequester(testBlocks[2:4])
-	cs.TempNamer = defTempNamer
+	cs := New(Options{
+		RootPath:       "testdata",
+		LocalRequester: fakeRequester(testBlocks[2:4]),
+		TempNamer:      defTempNamer,
+	})
 	if err := cs.writeFile(testFile); err != nil {
 		t.Fatal(err)
 	}
@@ -254,10 +265,12 @@ func TestWriteFileReuseAll(t *testing.T) {
 
 	// The errorRequester will fail the test if writeFile tries to grab any
 	// blocks from it.
-	cs := New("testdata", 0)
-	cs.LocalRequester = errorRequester{t}
-	cs.NetworkRequester = NewAsyncRequester(errorRequester{t}, 4)
-	cs.TempNamer = defTempNamer
+	cs := New(Options{
+		RootPath:         "testdata",
+		LocalRequester:   errorRequester{t},
+		NetworkRequester: NewAsyncRequester(errorRequester{t}, 4),
+		TempNamer:        defTempNamer,
+	})
 	if err := cs.writeFile(testFile); err != nil {
 		t.Fatal(err)
 	}
@@ -314,10 +327,12 @@ func TestWriteFileMissingDirFails(t *testing.T) {
 	file := testFile
 	file.Name = "testdir/test"
 
-	cs := New("testdata", 0)
-	cs.LocalRequester = fakeRequester(testBlocks[1:2])
-	cs.NetworkRequester = NewAsyncRequester(fakeRequester(testBlocks[2:]), 4)
-	cs.TempNamer = defTempNamer
+	cs := New(Options{
+		RootPath:         "testdata",
+		LocalRequester:   fakeRequester(testBlocks[1:2]),
+		NetworkRequester: NewAsyncRequester(fakeRequester(testBlocks[2:]), 4),
+		TempNamer:        defTempNamer,
+	})
 
 	if err := cs.writeFile(file); err == nil {
 		t.Error("Unexpected nil error from writeFile")
@@ -337,10 +352,12 @@ func TestDeleteFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cs := New("testdata", 0)
-	cs.LocalRequester = errorRequester{t}
-	cs.NetworkRequester = NewAsyncRequester(errorRequester{t}, 4)
-	cs.TempNamer = defTempNamer
+	cs := New(Options{
+		RootPath:         "testdata",
+		LocalRequester:   errorRequester{t},
+		NetworkRequester: NewAsyncRequester(errorRequester{t}, 4),
+		TempNamer:        defTempNamer,
+	})
 	if err := cs.deleteFile(testFile); err != nil {
 		t.Error(err)
 	}
@@ -373,10 +390,12 @@ func TestDeleteFileReadOnly(t *testing.T) {
 	roFile := testFile
 	roFile.Name = "testdir/test"
 
-	cs := New("testdata", 0)
-	cs.LocalRequester = errorRequester{t}
-	cs.NetworkRequester = NewAsyncRequester(errorRequester{t}, 4)
-	cs.TempNamer = defTempNamer
+	cs := New(Options{
+		RootPath:         "testdata",
+		LocalRequester:   errorRequester{t},
+		NetworkRequester: NewAsyncRequester(errorRequester{t}, 4),
+		TempNamer:        defTempNamer,
+	})
 	if err := cs.deleteFile(roFile); err != nil {
 		t.Error(err)
 	}
@@ -398,10 +417,12 @@ func TestDeleteFileNoExist(t *testing.T) {
 	file := testFile
 	file.Name = "testdir/test"
 
-	cs := New("testdata", 0)
-	cs.LocalRequester = errorRequester{t}
-	cs.NetworkRequester = NewAsyncRequester(errorRequester{t}, 4)
-	cs.TempNamer = defTempNamer
+	cs := New(Options{
+		RootPath:         "testdata",
+		LocalRequester:   errorRequester{t},
+		NetworkRequester: NewAsyncRequester(errorRequester{t}, 4),
+		TempNamer:        defTempNamer,
+	})
 	if err := cs.deleteFile(file); err != nil {
 		t.Error(err)
 	}
@@ -425,10 +446,12 @@ func TestDeleteFileInReadOnlyDir(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cs := New("testdata", 0)
-	cs.LocalRequester = errorRequester{t}
-	cs.NetworkRequester = NewAsyncRequester(errorRequester{t}, 4)
-	cs.TempNamer = defTempNamer
+	cs := New(Options{
+		RootPath:         "testdata",
+		LocalRequester:   errorRequester{t},
+		NetworkRequester: NewAsyncRequester(errorRequester{t}, 4),
+		TempNamer:        defTempNamer,
+	})
 	if err := cs.deleteFile(testFile); err != nil {
 		t.Error(err)
 	}
@@ -455,10 +478,12 @@ func TestRenameFile(t *testing.T) {
 	newFile.Name = "renamed"
 	newFile.Blocks = []protocol.BlockInfo{{Hash: testBlocks[0].hash}}
 
-	cs := New("testdata", 0)
-	cs.LocalRequester = errorRequester{t}
-	cs.NetworkRequester = NewAsyncRequester(errorRequester{t}, 4)
-	cs.TempNamer = defTempNamer
+	cs := New(Options{
+		RootPath:         "testdata",
+		LocalRequester:   errorRequester{t},
+		NetworkRequester: NewAsyncRequester(errorRequester{t}, 4),
+		TempNamer:        defTempNamer,
+	})
 	if err := cs.renameFile(testFile, newFile); err != nil {
 		t.Error(err)
 	}
@@ -495,10 +520,12 @@ func TestRenameFileInReadOnlyDir(t *testing.T) {
 	newFile.Name = "testdir/renamed"
 	newFile.Blocks = []protocol.BlockInfo{{Hash: testBlocks[0].hash}}
 
-	cs := New("testdata", 0)
-	cs.LocalRequester = errorRequester{t}
-	cs.NetworkRequester = NewAsyncRequester(errorRequester{t}, 4)
-	cs.TempNamer = defTempNamer
+	cs := New(Options{
+		RootPath:         "testdata",
+		LocalRequester:   errorRequester{t},
+		NetworkRequester: NewAsyncRequester(errorRequester{t}, 4),
+		TempNamer:        defTempNamer,
+	})
 	if err := cs.renameFile(oldFile, newFile); err != nil {
 		t.Error(err)
 	}
@@ -524,10 +551,12 @@ func TestWriteSymlinkToFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cs := New("testdata", 0)
-	cs.LocalRequester = fakeRequester(testBlocks[:])
-	cs.NetworkRequester = NewAsyncRequester(errorRequester{t}, 4)
-	cs.TempNamer = defTempNamer
+	cs := New(Options{
+		RootPath:         "testdata",
+		LocalRequester:   fakeRequester(testBlocks[:]),
+		NetworkRequester: NewAsyncRequester(errorRequester{t}, 4),
+		TempNamer:        defTempNamer,
+	})
 	if err := cs.writeSymlink(testSymlink); err != nil {
 		t.Error(err)
 	}
@@ -572,10 +601,12 @@ func TestFileMetadata(t *testing.T) {
 	}
 	defer os.RemoveAll("testdata")
 
-	cs := New("testdata", 0)
-	cs.LocalRequester = fakeRequester(testBlocks[:])
-	cs.NetworkRequester = NewAsyncRequester(errorRequester{t}, 4)
-	cs.TempNamer = defTempNamer
+	cs := New(Options{
+		RootPath:         "testdata",
+		LocalRequester:   fakeRequester(testBlocks[:]),
+		NetworkRequester: NewAsyncRequester(errorRequester{t}, 4),
+		TempNamer:        defTempNamer,
+	})
 
 	for i, c := range cases {
 		f := testFile
@@ -613,9 +644,11 @@ func TestWriteFileNewFromNetworkParallell(t *testing.T) {
 	}
 	defer os.RemoveAll("testdata")
 
-	cs := New("testdata", 0)
-	cs.NetworkRequester = NewAsyncRequester(slowRequester(testBlocks[:]), 4)
-	cs.TempNamer = defTempNamer
+	cs := New(Options{
+		RootPath:         "testdata",
+		NetworkRequester: NewAsyncRequester(slowRequester(testBlocks[:]), 4),
+		TempNamer:        defTempNamer,
+	})
 
 	t0 := time.Now()
 	if err := cs.writeFile(testFile); err != nil {
@@ -641,10 +674,12 @@ func TestWriteFileNewFromNetworkParallell(t *testing.T) {
 }
 
 func verifyWrite(f protocol.FileInfo) error {
-	cs := New("testdata", 0)
-	cs.LocalRequester = fakeRequester(testBlocks[1:2])
-	cs.NetworkRequester = NewAsyncRequester(fakeRequester(testBlocks[2:]), 4)
-	cs.TempNamer = defTempNamer
+	cs := New(Options{
+		RootPath:         "testdata",
+		LocalRequester:   fakeRequester(testBlocks[1:2]),
+		NetworkRequester: NewAsyncRequester(fakeRequester(testBlocks[2:]), 4),
+		TempNamer:        defTempNamer,
+	})
 	if err := cs.writeFile(f); err != nil {
 		return fmt.Errorf("writeFile: %v", err)
 	}

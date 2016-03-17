@@ -28,9 +28,11 @@ func TestWriteFileIgnorePerms(t *testing.T) {
 	}
 	defer os.RemoveAll("testdata")
 
-	cs := New("testdata", 0)
-	cs.LocalRequester = fakeRequester(testBlocks[:])
-	cs.TempNamer = defTempNamer
+	cs := New(Options{
+		RootPath:       "testdata",
+		TempNamer:      defTempNamer,
+		LocalRequester: fakeRequester(testBlocks[:]),
+	})
 
 	const umask = 0124
 	oldMask := syscall.Umask(umask)
@@ -68,9 +70,11 @@ func TestWriteFilePermsOverrideUmask(t *testing.T) {
 	}
 	defer os.RemoveAll("testdata")
 
-	cs := New("testdata", 0)
-	cs.LocalRequester = fakeRequester(testBlocks[:])
-	cs.TempNamer = defTempNamer
+	cs := New(Options{
+		RootPath:       "testdata",
+		TempNamer:      defTempNamer,
+		LocalRequester: fakeRequester(testBlocks[:]),
+	})
 
 	oldUmask := syscall.Umask(0776)
 	defer syscall.Umask(oldUmask)

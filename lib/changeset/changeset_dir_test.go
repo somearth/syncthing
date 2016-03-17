@@ -34,10 +34,12 @@ func TestWriteDeleteDirectoryDeep(t *testing.T) {
 	deepDir := testDir
 	deepDir.Name = "foo/bar/baz"
 
-	cs := New("testdata", 0)
-	cs.TempNamer = defTempNamer
-	cs.LocalRequester = fakeRequester(testBlocks[:])
-	cs.NetworkRequester = NewAsyncRequester(errorRequester{t}, 4)
+	cs := New(Options{
+		RootPath:         "testdata",
+		TempNamer:        defTempNamer,
+		LocalRequester:   fakeRequester(testBlocks[:]),
+		NetworkRequester: NewAsyncRequester(errorRequester{t}, 4),
+	})
 
 	// Applying the change set will fail as we are missing intermediate
 	// directories.
@@ -66,10 +68,12 @@ func TestWriteDeleteDirectoryReadOnly(t *testing.T) {
 }
 
 func testWriteDeleteDirectory(t *testing.T, d protocol.FileInfo) {
-	cs := New("testdata", 0)
-	cs.TempNamer = defTempNamer
-	cs.LocalRequester = fakeRequester(testBlocks[:])
-	cs.NetworkRequester = NewAsyncRequester(errorRequester{t}, 4)
+	cs := New(Options{
+		RootPath:         "testdata",
+		TempNamer:        defTempNamer,
+		LocalRequester:   fakeRequester(testBlocks[:]),
+		NetworkRequester: NewAsyncRequester(errorRequester{t}, 4),
+	})
 
 	// Create the directory
 

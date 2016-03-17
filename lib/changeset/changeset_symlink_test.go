@@ -31,10 +31,12 @@ func TestWriteSymlinkToDir(t *testing.T) {
 	dirLink := testSymlink
 	dirLink.Flags |= protocol.FlagDirectory
 
-	cs := New("testdata", 0)
-	cs.LocalRequester = fakeRequester(testBlocks[:])
-	cs.NetworkRequester = NewAsyncRequester(errorRequester{t}, 4)
-	cs.TempNamer = defTempNamer
+	cs := New(Options{
+		RootPath:         "testdata",
+		LocalRequester:   fakeRequester(testBlocks[:]),
+		NetworkRequester: NewAsyncRequester(errorRequester{t}, 4),
+		TempNamer:        defTempNamer,
+	})
 	if err := cs.writeSymlink(dirLink); err != nil {
 		t.Error(err)
 	}
@@ -61,10 +63,12 @@ func TestWriteSymlinkToNonExistent(t *testing.T) {
 	}
 	defer os.RemoveAll("testdata")
 
-	cs := New("testdata", 0)
-	cs.LocalRequester = fakeRequester(testBlocks[:])
-	cs.NetworkRequester = NewAsyncRequester(errorRequester{t}, 4)
-	cs.TempNamer = defTempNamer
+	cs := New(Options{
+		RootPath:         "testdata",
+		LocalRequester:   fakeRequester(testBlocks[:]),
+		NetworkRequester: NewAsyncRequester(errorRequester{t}, 4),
+		TempNamer:        defTempNamer,
+	})
 	if err := cs.writeSymlink(testSymlink); err != nil {
 		t.Error(err)
 	}

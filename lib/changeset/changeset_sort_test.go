@@ -16,7 +16,7 @@ import (
 func TestSortDeleteSubdir(t *testing.T) {
 	// Subdirectories must be deleted before deleting parents
 
-	cs := New("testdata", 0)
+	cs := New(Options{RootPath: "testdata"})
 	cs.Queue(protocol.FileInfo{
 		Name:  "foo",
 		Flags: protocol.FlagDirectory | protocol.FlagDeleted,
@@ -35,7 +35,7 @@ func TestSortDeleteSubdir(t *testing.T) {
 func TestSortCreateDir(t *testing.T) {
 	// Directories must be created before files inside them
 
-	cs := New("testdata", 0)
+	cs := New(Options{RootPath: "testdata"})
 	cs.Queue(protocol.FileInfo{
 		Name:   "foo/bar",
 		Flags:  0777,
@@ -55,7 +55,7 @@ func TestSortCreateDir(t *testing.T) {
 func TestSortUpdateDeleteFile(t *testing.T) {
 	// File deletes must be done before updates
 
-	cs := New("testdata", 0)
+	cs := New(Options{RootPath: "testdata"})
 	cs.Queue(protocol.FileInfo{
 		Name:   "foo",
 		Flags:  0777,
@@ -77,7 +77,7 @@ func TestSortReuseFile(t *testing.T) {
 	// File deletes must be done *after* updates to other files with the same
 	// hash, so that we can reuse the file.
 
-	cs := New("testdata", 0)
+	cs := New(Options{RootPath: "testdata"})
 	cs.Queue(protocol.FileInfo{
 		Name:   "foo",
 		Flags:  0777 | protocol.FlagDeleted,
@@ -101,7 +101,7 @@ func TestSortNoReorder(t *testing.T) {
 	// may have random ordering.
 
 	for i := 0; i < 100; i++ {
-		cs := New("testdata", 0)
+		cs := New(Options{RootPath: "testdata"})
 		cs.Queue(protocol.FileInfo{
 			Name:   "zfoo",
 			Flags:  0777 | protocol.FlagDeleted,
@@ -135,7 +135,7 @@ func TestSortReorderPartly(t *testing.T) {
 	// require it. However the pair in the middle must be reordered.
 
 	for i := 0; i < 100; i++ {
-		cs := New("testdata", 0)
+		cs := New(Options{RootPath: "testdata"})
 		cs.Queue(protocol.FileInfo{
 			Name:   "zfoo",
 			Flags:  0777 | protocol.FlagDeleted,
@@ -166,7 +166,7 @@ func TestSortReorderPartly(t *testing.T) {
 func TestSortBringToFront(t *testing.T) {
 	// Moving an element to front should work properly.
 
-	cs := New("testdata", 0)
+	cs := New(Options{RootPath: "testdata"})
 	cs.Queue(protocol.FileInfo{
 		Name:   "zfoo",
 		Flags:  0777 | protocol.FlagDeleted,

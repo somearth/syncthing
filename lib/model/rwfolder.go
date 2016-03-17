@@ -348,12 +348,6 @@ func (p *rwFolder) String() string {
 // might have failed). One puller iteration handles all files currently
 // flagged as needed in the folder.
 func (p *rwFolder) pullerIteration(ignores *ignore.Matcher) (int, error) {
-	// Create a new changeset to apply the changes
-
-	cs := changeset.New(p.dir, p.maxConflicts)
-	cs.CurrentFiler = cFiler{p.model, p.folder}
-	cs.TempNamer = defTempNamer
-
 	// Create the database updater and event emitter things, who each listen
 	// to progress updates from the changeset. Also the currentTracker that we
 	// use to keep track of files currently being processed.
@@ -362,16 +356,10 @@ func (p *rwFolder) pullerIteration(ignores *ignore.Matcher) (int, error) {
 	defer dbUpdater.Close() // also implicitly awaits db commit of all changes
 	eventEmitter := newProgressTracker(p.folder)
 	currentTracker := newCurrentTracker()
-	cs.Progresser = multiProgresser{
+	progresser := multiProgresser{
 		dbUpdater,
 		eventEmitter,
 		currentTracker,
-	}
-
-	// Set the versioner (archiver) if we have one.
-
-	if p.versioner != nil {
-		cs.Archiver = p.versioner
 	}
 
 	// Set up the local block requester.
@@ -386,7 +374,7 @@ func (p *rwFolder) pullerIteration(ignores *ignore.Matcher) (int, error) {
 	}
 	p.model.fmut.RUnlock()
 
-	cs.LocalRequester = &localBlockPuller{
+	localRequester := &localBlockPuller{
 		model:       p.model,
 		folders:     folders,
 		folderRoots: folderRoots,
@@ -398,12 +386,26 @@ func (p *rwFolder) pullerIteration(ignores *ignore.Matcher) (int, error) {
 		model:  p.model,
 		folder: p.folder,
 	}
-	cs.NetworkRequester = changeset.NewAsyncRequester(np, p.pullers)
+	networkRequester := changeset.NewAsyncRequester(np, p.pullers)
 
 	// Set up the virtual mtime store
 
 	mtimeKVStore := db.NewNamespacedKV(p.model.db, string(db.KeyTypeVirtualMtime)+p.folder)
-	cs.Filesystem = fs.NewMtimeFS(mtimeKVStore)
+	filesystem := fs.NewMtimeFS(mtimeKVStore)
+
+	// Create a new changeset to apply the changes
+
+	cs := changeset.New(changeset.Options{
+		RootPath:         p.dir,
+		MaxConflicts:     p.maxConflicts,
+		CurrentFiler:     cFiler{p.model, p.folder},
+		TempNamer:        defTempNamer,
+		Progresser:       progresser,
+		Archiver:         p.versioner,
+		LocalRequester:   localRequester,
+		NetworkRequester: networkRequester,
+		Filesystem:       filesystem,
+	})
 
 	// Grab the files we need to process.
 

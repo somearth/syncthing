@@ -78,13 +78,9 @@ type ApplyError interface {
 	Errors() []error
 }
 
-type ChangeSet struct {
-	// Set by the constructor
-	rootPath     string
-	maxConflicts int // 0 disables conflict copies, -1 gives unlimited conflict copies
-
-	// Somewhat optional fields, set directly by the package user after
-	// creation
+type Options struct {
+	RootPath         string
+	MaxConflicts     int
 	TempNamer        TempNamer       // needed if we do any operations on files or symlinks
 	LocalRequester   Requester       // needed to reuse blocks locally
 	NetworkRequester *AsyncRequester // needed to request blocks from the network
@@ -92,6 +88,22 @@ type ChangeSet struct {
 	Archiver         Archiver        // used for archiving old versions
 	Filesystem       fs.Filesystem   // handles low level filesystem operations
 	Progresser       Progresser      // used to report per file progress data and completion
+
+}
+
+type ChangeSet struct {
+	// Set by the constructor
+	rootPath     string
+	maxConflicts int // 0 disables conflict copies, -1 gives unlimited conflict copies
+
+	// Somewhat optional attributes
+	tempNamer        TempNamer
+	localRequester   Requester
+	networkRequester *AsyncRequester
+	currentFiler     CurrentFiler
+	archiver         Archiver
+	filesystem       fs.Filesystem
+	progresser       Progresser
 
 	mut           sync.Mutex
 	queue         []fileInfo
@@ -108,14 +120,31 @@ func (f fileInfo) String() string {
 }
 
 // New creates and returns a new empty ChangeSet.
-func New(rootPath string, maxConflicts int) *ChangeSet {
-	return &ChangeSet{
-		rootPath:      rootPath,
-		maxConflicts:  maxConflicts,
+func New(opts Options) *ChangeSet {
+	c := &ChangeSet{
+		rootPath:         opts.RootPath,
+		maxConflicts:     opts.MaxConflicts,
+		tempNamer:        opts.TempNamer,
+		localRequester:   opts.LocalRequester,
+		networkRequester: opts.NetworkRequester,
+		currentFiler:     opts.CurrentFiler,
+		archiver:         opts.Archiver,
+		filesystem:       opts.Filesystem,
+		progresser:       opts.Progresser,
+
 		deletedHashes: make(map[string]protocol.FileInfo),
-		Filesystem:    fs.DefaultFilesystem,
 		mut:           sync.NewMutex(),
 	}
+
+	// Set some defaults if they were not set from the opts.
+	if c.filesystem == nil {
+		c.filesystem = fs.DefaultFilesystem
+	}
+	if c.progresser == nil {
+		c.progresser = nilProgresser{}
+	}
+
+	return c
 }
 
 // Queue adds a file (or directory) to the change set. In case of a deletion,
@@ -133,8 +162,8 @@ func (c *ChangeSet) Queue(f protocol.FileInfo) {
 		c.deletedHashes[key] = f
 	}
 
-	if c.CurrentFiler != nil {
-		if cur, ok := c.CurrentFiler.CurrentFile(f.Name); ok && f.IsDirectory() != cur.IsDirectory() {
+	if c.currentFiler != nil {
+		if cur, ok := c.currentFiler.CurrentFile(f.Name); ok && f.IsDirectory() != cur.IsDirectory() {
 			// We are attempting to replace a file with a directory or vice
 			// versa. The existing item must be deleted before we can put the
 			// new one in place. Queue that as well; the ordering will be
@@ -325,22 +354,21 @@ func (c *ChangeSet) Size() int {
 // progressAccount calls fn(f) and returns it's return value, while ensuring
 // that the Progresser is called appropriately before and after.
 func (c *ChangeSet) progressAccount(fn func(protocol.FileInfo) *opError, f fileInfo) *opError {
-	if f.synthetic || c.Progresser == nil {
+	if f.synthetic {
 		// This is a file operation we inserted into the queue ourselves to
-		// satisfy dependencies, or we are not required to report progress at
-		// all.
+		// satisfy dependencies.
 		return fn(f.FileInfo)
 	}
 
-	c.Progresser.Started(f.FileInfo)
+	c.progresser.Started(f.FileInfo)
 
 	err := fn(f.FileInfo)
 	if err != nil {
-		c.Progresser.Completed(f.FileInfo, err)
+		c.progresser.Completed(f.FileInfo, err)
 		return err
 	}
 
-	c.Progresser.Completed(f.FileInfo, nil)
+	c.progresser.Completed(f.FileInfo, nil)
 
 	return nil
 }
@@ -396,3 +424,13 @@ func (e applyError) Errors() []error {
 	}
 	return errs
 }
+
+// A no-op Progresser
+
+type nilProgresser struct{}
+
+func (nilProgresser) Started(file protocol.FileInfo) {}
+
+func (nilProgresser) Progress(file protocol.FileInfo, copied, requested, downloaded int) {}
+
+func (nilProgresser) Completed(file protocol.FileInfo, err error) {}

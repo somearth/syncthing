@@ -26,10 +26,12 @@ func TestUpdateDirectoryIgnorePerms(t *testing.T) {
 	defer os.RemoveAll("testdata")
 	defer os.Chmod("testdata/dir", 0777)
 
-	cs := New("testdata", 0)
-	cs.TempNamer = defTempNamer
-	cs.LocalRequester = fakeRequester(testBlocks[:])
-	cs.NetworkRequester = NewAsyncRequester(errorRequester{t}, 4)
+	cs := New(Options{
+		RootPath:         "testdata",
+		TempNamer:        defTempNamer,
+		LocalRequester:   fakeRequester(testBlocks[:]),
+		NetworkRequester: NewAsyncRequester(errorRequester{t}, 4),
+	})
 
 	const umask = 0123
 	oldMask := syscall.Umask(umask)
@@ -57,10 +59,12 @@ func TestWriteDirectoryOverrideUmask(t *testing.T) {
 	defer os.RemoveAll("testdata")
 	defer os.Chmod("testdata/dir", 0777)
 
-	cs := New("testdata", 0)
-	cs.TempNamer = defTempNamer
-	cs.LocalRequester = fakeRequester(testBlocks[:])
-	cs.NetworkRequester = NewAsyncRequester(errorRequester{t}, 4)
+	cs := New(Options{
+		RootPath:         "testdata",
+		TempNamer:        defTempNamer,
+		LocalRequester:   fakeRequester(testBlocks[:]),
+		NetworkRequester: NewAsyncRequester(errorRequester{t}, 4),
+	})
 
 	oldUmask := syscall.Umask(0776)
 	defer syscall.Umask(oldUmask)
@@ -96,10 +100,12 @@ func TestUpdateDirectoryExtraBits(t *testing.T) {
 
 	defer os.Chmod("testdata/dir", 0777)
 
-	cs := New("testdata", 0)
-	cs.TempNamer = defTempNamer
-	cs.LocalRequester = fakeRequester(testBlocks[:])
-	cs.NetworkRequester = NewAsyncRequester(errorRequester{t}, 4)
+	cs := New(Options{
+		RootPath:         "testdata",
+		TempNamer:        defTempNamer,
+		LocalRequester:   fakeRequester(testBlocks[:]),
+		NetworkRequester: NewAsyncRequester(errorRequester{t}, 4),
+	})
 
 	if err := cs.writeDir(testDir); err != nil {
 		t.Fatal(err)

@@ -28,11 +28,11 @@ func (c *ChangeSet) writeSymlink(f protocol.FileInfo) *opError {
 	buf := make([]byte, f.Blocks[0].Size)
 
 	// Try to reuse the block from somewhere local.
-	err := c.LocalRequester.Request(f.Name, 0, f.Blocks[0].Hash, buf)
+	err := c.localRequester.Request(f.Name, 0, f.Blocks[0].Hash, buf)
 	if err != nil {
 		// We got an error from the local source, try to request it from the
 		// network instead.
-		resp := c.NetworkRequester.Request(f.Name, 0, f.Blocks[0].Hash, int(f.Blocks[0].Size))
+		resp := c.networkRequester.Request(f.Name, 0, f.Blocks[0].Hash, int(f.Blocks[0].Size))
 		err = resp.Error()
 		buf = resp.Bytes()
 		defer resp.Close()
@@ -48,8 +48,8 @@ func (c *ChangeSet) writeSymlink(f protocol.FileInfo) *opError {
 	}
 
 	err = osutil.InWritableDir(func(realPath string) error {
-		c.Filesystem.Remove(realPath)
-		return c.Filesystem.CreateSymlink(realPath, string(buf), tt)
+		c.filesystem.Remove(realPath)
+		return c.filesystem.CreateSymlink(realPath, string(buf), tt)
 	}, realPath)
 	if err != nil {
 		return &opError{file: f.Name, op: "writeSymlink create", err: err}
@@ -60,10 +60,10 @@ func (c *ChangeSet) writeSymlink(f protocol.FileInfo) *opError {
 
 func (c *ChangeSet) deleteSymlink(f protocol.FileInfo) *opError {
 	realPath := filepath.Join(c.rootPath, f.Name)
-	if _, err := c.Filesystem.Lstat(realPath); os.IsNotExist(err) {
+	if _, err := c.filesystem.Lstat(realPath); os.IsNotExist(err) {
 		return nil
 	}
-	if err := osutil.InWritableDir(c.Filesystem.Remove, realPath); err != nil {
+	if err := osutil.InWritableDir(c.filesystem.Remove, realPath); err != nil {
 		return &opError{file: f.Name, op: "deleteSymlink remove", err: err}
 	}
 

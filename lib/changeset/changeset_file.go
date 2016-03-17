@@ -24,18 +24,18 @@ import (
 
 func (c *ChangeSet) writeFile(f protocol.FileInfo) *opError {
 	realPath := filepath.Join(c.rootPath, f.Name)
-	tempPath := c.TempNamer.TempName(realPath)
+	tempPath := c.tempNamer.TempName(realPath)
 
 	inConflict := false
-	if c.CurrentFiler != nil {
-		if curFile, ok := c.CurrentFiler.CurrentFile(f.Name); ok {
+	if c.currentFiler != nil {
+		if curFile, ok := c.currentFiler.CurrentFile(f.Name); ok {
 			// We have a CurrentFiler and it returned an existing file for
 			// the one we are about to replace.
 
 			// Check that the modification time and size matches, otherwise
 			// return an error indicating that we need a rescan before we can
 			// do this change.
-			if info, err := c.Filesystem.Lstat(realPath); err == nil {
+			if info, err := c.filesystem.Lstat(realPath); err == nil {
 				var mismatch error
 				if info.ModTime().Unix() != curFile.Modified {
 					mismatch = fmt.Errorf("modification time mismatch")
@@ -67,12 +67,12 @@ func (c *ChangeSet) writeFile(f protocol.FileInfo) *opError {
 	reuse := false
 	fileSize := f.Size() // We might override f.Blocks when reusing
 
-	if _, err := c.Filesystem.Lstat(tempPath); err == nil {
+	if _, err := c.filesystem.Lstat(tempPath); err == nil {
 		// Temporary file already exists. Reuse blocks from it.
 		blocks, err := scanner.HashFile(tempPath, protocol.BlockSize, 0, nil)
 		if err != nil {
 			// Weird, we couldn't scan the temp file. Try to remove it?
-			if err := osutil.InWritableDir(c.Filesystem.Remove, tempPath); err != nil {
+			if err := osutil.InWritableDir(c.filesystem.Remove, tempPath); err != nil {
 				// Dammit :(
 				return &opError{file: f.Name, op: "writeFile remove reused temp file", err: err}
 			}
@@ -111,16 +111,16 @@ func (c *ChangeSet) writeFile(f protocol.FileInfo) *opError {
 			// block of all zeroes, so then we should not skip it.
 
 			// Pretend we copied it.
-			c.Progresser.Progress(f, int(block.Size), 0, 0)
+			c.progresser.Progress(f, int(block.Size), 0, 0)
 			continue
 		}
 
 		buf = buf[:block.Size]
 
 		err := fmt.Errorf("no source") // will be overwritten if there are any sources to talk to
-		if c.LocalRequester != nil {
+		if c.localRequester != nil {
 			// Try to reuse the block from somewhere local.
-			err = c.LocalRequester.Request(f.Name, block.Offset, block.Hash, buf)
+			err = c.localRequester.Request(f.Name, block.Offset, block.Hash, buf)
 			if err == nil {
 				// Write out the block, returning early on failure.
 				_, err = fd.WriteAt(buf, block.Offset)
@@ -129,33 +129,30 @@ func (c *ChangeSet) writeFile(f protocol.FileInfo) *opError {
 					return &opError{file: f.Name, op: "writeFile write", err: err}
 				}
 
-				if c.Progresser != nil {
-					// Tell the Progresser that we copied a block.
-					c.Progresser.Progress(f, int(block.Size), 0, 0)
-				}
+				// Tell the Progresser that we copied a block.
+				c.progresser.Progress(f, int(block.Size), 0, 0)
 			}
 		}
 
-		if err != nil && c.NetworkRequester != nil {
+		if err != nil && c.networkRequester != nil {
 			// We got an error from the local source, try to request it from
 			// the network instead.
-			resp := c.NetworkRequester.Request(f.Name, block.Offset, block.Hash, int(block.Size))
+			resp := c.networkRequester.Request(f.Name, block.Offset, block.Hash, int(block.Size))
 			err = nil // The background request succeeded; if it fails, that'll be handled the errC route.
 			wg.Add(1)
-			if c.Progresser != nil {
-				// Tell the Progresser that we requested a block.
-				c.Progresser.Progress(f, 0, int(block.Size), 0)
-			}
+
+			// Tell the Progresser that we requested a block.
+			c.progresser.Progress(f, 0, int(block.Size), 0)
+
 			go func(block protocol.BlockInfo) {
 				defer resp.Close()
 				defer wg.Done()
 
 				err := resp.Error()
 				if err != nil {
-					if c.Progresser != nil {
-						// Tell the Progresser that the download failed
-						c.Progresser.Progress(f, 0, -int(block.Size), 0)
-					}
+					// Tell the Progresser that the download failed
+					c.progresser.Progress(f, 0, -int(block.Size), 0)
+
 					// Try to send the error on the errC. Do this with a
 					// select as something else may already have errored out
 					// and is blocking the errC.
@@ -168,10 +165,9 @@ func (c *ChangeSet) writeFile(f protocol.FileInfo) *opError {
 
 				_, err = resp.WriteAt(fd, block.Offset)
 				if err != nil {
-					if c.Progresser != nil {
-						// Tell the Progresser that the download failed
-						c.Progresser.Progress(f, 0, -int(block.Size), 0)
-					}
+					// Tell the Progresser that the download failed
+					c.progresser.Progress(f, 0, -int(block.Size), 0)
+
 					select {
 					case errC <- &opError{file: f.Name, op: "background write", err: err}:
 					default:
@@ -179,10 +175,8 @@ func (c *ChangeSet) writeFile(f protocol.FileInfo) *opError {
 					return
 				}
 
-				if c.Progresser != nil {
-					// Tell the Progresser that we downloaded a block.
-					c.Progresser.Progress(f, 0, -int(block.Size), int(block.Size))
-				}
+				// Tell the Progresser that we downloaded a block.
+				c.progresser.Progress(f, 0, -int(block.Size), int(block.Size))
 			}(block)
 		}
 
@@ -210,22 +204,22 @@ func (c *ChangeSet) writeFile(f protocol.FileInfo) *opError {
 	}
 
 	if f.Flags&protocol.FlagNoPermBits == 0 {
-		if err := c.Filesystem.Chmod(tempPath, os.FileMode(f.Flags&0777)); err != nil {
+		if err := c.filesystem.Chmod(tempPath, os.FileMode(f.Flags&0777)); err != nil {
 			return &opError{file: f.Name, op: "writeFile chmod", err: err}
 		}
 	}
 
 	modTime := time.Unix(f.Modified, 0)
-	if err := c.Filesystem.Chtimes(tempPath, modTime, modTime); err != nil {
+	if err := c.filesystem.Chtimes(tempPath, modTime, modTime); err != nil {
 		return &opError{file: f.Name, op: "writeFile chtimes", err: err}
 	}
 
 	if inConflict {
 		c.moveForConflict(realPath)
-	} else if c.Archiver != nil {
-		c.Archiver.Archive(realPath)
+	} else if c.archiver != nil {
+		c.archiver.Archive(realPath)
 	}
-	if err := c.Filesystem.Rename(tempPath, realPath); err != nil {
+	if err := c.filesystem.Rename(tempPath, realPath); err != nil {
 		return &opError{file: f.Name, op: "writeFile rename", err: err}
 	}
 
@@ -234,15 +228,15 @@ func (c *ChangeSet) writeFile(f protocol.FileInfo) *opError {
 
 func (c *ChangeSet) deleteFile(f protocol.FileInfo) *opError {
 	realPath := filepath.Join(c.rootPath, f.Name)
-	if c.Archiver != nil {
-		c.Archiver.Archive(realPath)
+	if c.archiver != nil {
+		c.archiver.Archive(realPath)
 	}
-	if err := osutil.InWritableDir(c.Filesystem.Remove, realPath); err != nil {
+	if err := osutil.InWritableDir(c.filesystem.Remove, realPath); err != nil {
 		if os.IsNotExist(err) {
 			// Things that don't exist are removed
 			return nil
 		}
-		if _, err := c.Filesystem.Lstat(realPath); err != nil {
+		if _, err := c.filesystem.Lstat(realPath); err != nil {
 			// Things that we can't stat don't exist
 			return nil
 		}
@@ -256,7 +250,7 @@ func (c *ChangeSet) deleteFile(f protocol.FileInfo) *opError {
 func (c *ChangeSet) renameFile(from, to protocol.FileInfo) *opError {
 	realFrom := filepath.Join(c.rootPath, from.Name)
 	realTo := filepath.Join(c.rootPath, to.Name)
-	if err := c.Filesystem.Rename(realFrom, realTo); err != nil {
+	if err := c.filesystem.Rename(realFrom, realTo); err != nil {
 		return &opError{file: to.Name, op: "renameFile", err: err}
 	}
 	return nil
@@ -273,7 +267,7 @@ func (c *ChangeSet) moveForConflict(name string) error {
 		return nil
 	}
 	if c.maxConflicts == 0 {
-		if err := osutil.InWritableDir(c.Filesystem.Remove, name); err != nil && !os.IsNotExist(err) {
+		if err := osutil.InWritableDir(c.filesystem.Remove, name); err != nil && !os.IsNotExist(err) {
 			return err
 		}
 		return nil
@@ -282,7 +276,7 @@ func (c *ChangeSet) moveForConflict(name string) error {
 	ext := filepath.Ext(name) // includes dot
 	withoutExt := name[:len(name)-len(ext)]
 	newName := withoutExt + time.Now().Format(".sync-conflict-20060102-150405") + ext
-	err := c.Filesystem.Rename(name, newName)
+	err := c.filesystem.Rename(name, newName)
 	if os.IsNotExist(err) {
 		// We were supposed to move a file away but it does not exist. Either
 		// the user has already moved it away, or the conflict was between a
@@ -298,7 +292,7 @@ func (c *ChangeSet) moveForConflict(name string) error {
 		// so on).
 
 		dir := filepath.Dir(name)
-		names, dirErr := c.Filesystem.DirNames(dir)
+		names, dirErr := c.filesystem.DirNames(dir)
 		if dirErr != nil {
 			// Return the result of rename from above; never mind this failure
 			return err
@@ -317,7 +311,7 @@ func (c *ChangeSet) moveForConflict(name string) error {
 		if len(matches) > c.maxConflicts {
 			sort.Sort(sort.Reverse(sort.StringSlice(matches)))
 			for _, match := range matches[c.maxConflicts:] {
-				c.Filesystem.Remove(filepath.Join(dir, match)) // if we fail, we fail
+				c.filesystem.Remove(filepath.Join(dir, match)) // if we fail, we fail
 			}
 		}
 	}
@@ -334,15 +328,15 @@ func (c *ChangeSet) openTempFile(tempPath string, reuse bool, size int64) (fs.Fi
 		// make sure we have write permissions on the file before opening it.
 		// Ignore the error here as we may be on a filesystem that doesn't
 		// support it and we'll fail nicely on the next operation anyhow.
-		c.Filesystem.Chmod(tempPath, 0666)
+		c.filesystem.Chmod(tempPath, 0666)
 	} else {
 		// We need to be able to create a temp file in the directory, so it
 		// must be writable to us. If it's not, make it so for the duration of
 		// the operation.
 		dir := filepath.Dir(tempPath)
-		if info, err := c.Filesystem.Stat(dir); err == nil && info.Mode()&0200 == 0 {
-			if err := c.Filesystem.Chmod(dir, 0755); err == nil {
-				defer c.Filesystem.Chmod(dir, info.Mode().Perm())
+		if info, err := c.filesystem.Stat(dir); err == nil && info.Mode()&0200 == 0 {
+			if err := c.filesystem.Chmod(dir, 0755); err == nil {
+				defer c.filesystem.Chmod(dir, info.Mode().Perm())
 			}
 		}
 	}
@@ -354,7 +348,7 @@ func (c *ChangeSet) openTempFile(tempPath string, reuse bool, size int64) (fs.Fi
 		flag |= os.O_EXCL
 	}
 
-	fd, err := c.Filesystem.OpenFile(tempPath, flag)
+	fd, err := c.filesystem.OpenFile(tempPath, flag)
 	if err != nil {
 		return nil, fmt.Errorf("openTempFile: open (reuse=%v): %v", reuse, err)
 	}

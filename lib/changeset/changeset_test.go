@@ -32,10 +32,12 @@ func TestChangeSetCreateDeleteFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cs := New("testdata", 0)
-	cs.LocalRequester = fakeRequester(testBlocks[:])
-	cs.NetworkRequester = NewAsyncRequester(errorRequester{t}, 4)
-	cs.TempNamer = defTempNamer
+	cs := New(Options{
+		RootPath:         "testdata",
+		LocalRequester:   fakeRequester(testBlocks[:]),
+		NetworkRequester: NewAsyncRequester(errorRequester{t}, 4),
+		TempNamer:        defTempNamer,
+	})
 
 	cs.Queue(testFile)
 	cs.Queue(testFile2)
@@ -75,8 +77,10 @@ func TestChangeSetCreateDeleteDirs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cs := New("testdata", 0)
-	cs.TempNamer = defTempNamer
+	cs := New(Options{
+		RootPath:  "testdata",
+		TempNamer: defTempNamer,
+	})
 
 	delDir := protocol.FileInfo{
 		Name:  "foo",
@@ -107,9 +111,11 @@ func TestChangeSetRenameFiles(t *testing.T) {
 	}
 	defer os.RemoveAll("testdata")
 
-	cs := New("testdata", 0)
-	cs.LocalRequester = fakeRequester(testBlocks[:])
-	cs.TempNamer = defTempNamer
+	cs := New(Options{
+		RootPath:       "testdata",
+		LocalRequester: fakeRequester(testBlocks[:]),
+		TempNamer:      defTempNamer,
+	})
 
 	// Make sure the source file exists
 	if err := cs.writeFile(testFile); err != nil {
@@ -119,11 +125,13 @@ func TestChangeSetRenameFiles(t *testing.T) {
 	// Create a new change set and queue the rename
 
 	cp := new(countingProgresser)
-	cs = New("testdata", 0)
-	cs.LocalRequester = errorRequester{t}
-	cs.NetworkRequester = NewAsyncRequester(errorRequester{t}, 4)
-	cs.TempNamer = defTempNamer
-	cs.Progresser = cp
+	cs = New(Options{
+		RootPath:         "testdata",
+		LocalRequester:   errorRequester{t},
+		NetworkRequester: NewAsyncRequester(errorRequester{t}, 4),
+		TempNamer:        defTempNamer,
+		Progresser:       cp,
+	})
 
 	delFile := testFile
 	delFile.Flags |= protocol.FlagDeleted
@@ -174,10 +182,12 @@ func TestChangeSetCreateDeleteSymlinks(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cs := New("testdata", 0)
-	cs.LocalRequester = fakeRequester(testBlocks[:])
-	cs.NetworkRequester = NewAsyncRequester(errorRequester{t}, 4)
-	cs.TempNamer = defTempNamer
+	cs := New(Options{
+		RootPath:         "testdata",
+		LocalRequester:   fakeRequester(testBlocks[:]),
+		NetworkRequester: NewAsyncRequester(errorRequester{t}, 4),
+		TempNamer:        defTempNamer,
+	})
 
 	testNewSym := testSymlink
 	testNewSym.Name = "newSymlink"
@@ -239,11 +249,13 @@ func TestChangeSetMustRescan(t *testing.T) {
 	oldFile.Modified = time.Now().Add(-60 * time.Second).Unix()
 	oldFile.Blocks = []protocol.BlockInfo{protocol.BlockInfo{Size: protocol.BlockSize, Hash: testBlocks[0].hash}}
 
-	cs := New("testdata", 0)
-	cs.LocalRequester = fakeRequester(testBlocks[:])
-	cs.NetworkRequester = NewAsyncRequester(errorRequester{t}, 4)
-	cs.TempNamer = defTempNamer
-	cs.CurrentFiler = fakeCurrentFiler(oldFile)
+	cs := New(Options{
+		RootPath:         "testdata",
+		LocalRequester:   fakeRequester(testBlocks[:]),
+		NetworkRequester: NewAsyncRequester(errorRequester{t}, 4),
+		TempNamer:        defTempNamer,
+		CurrentFiler:     fakeCurrentFiler(oldFile),
+	})
 
 	cs.Queue(testFile)
 
@@ -291,11 +303,13 @@ func TestChangeSetVersionFile(t *testing.T) {
 	}
 
 	fv := new(fakeArchiver)
-	cs := New("testdata", 0)
-	cs.LocalRequester = fakeRequester(testBlocks[:])
-	cs.NetworkRequester = NewAsyncRequester(errorRequester{t}, 4)
-	cs.TempNamer = defTempNamer
-	cs.Archiver = fv
+	cs := New(Options{
+		RootPath:         "testdata",
+		LocalRequester:   fakeRequester(testBlocks[:]),
+		NetworkRequester: NewAsyncRequester(errorRequester{t}, 4),
+		TempNamer:        defTempNamer,
+		Archiver:         fv,
+	})
 
 	cs.Queue(testFile)
 
@@ -342,11 +356,13 @@ func TestChangeSetProgresser(t *testing.T) {
 	}
 
 	cp := new(countingProgresser)
-	cs := New("testdata", 0)
-	cs.LocalRequester = fakeRequester(testBlocks[:4])
-	cs.NetworkRequester = NewAsyncRequester(fakeRequester(testBlocks[4:]), 4)
-	cs.TempNamer = defTempNamer
-	cs.Progresser = cp
+	cs := New(Options{
+		RootPath:         "testdata",
+		LocalRequester:   fakeRequester(testBlocks[:4]),
+		NetworkRequester: NewAsyncRequester(fakeRequester(testBlocks[4:]), 4),
+		TempNamer:        defTempNamer,
+		Progresser:       cp,
+	})
 
 	cs.Queue(testFile)    // A created file
 	cs.Queue(testFile2)   // Another one
@@ -397,17 +413,21 @@ func TestChangeSetReplaceFileWithDir(t *testing.T) {
 	}
 	defer os.RemoveAll("testdata")
 
-	cs := New("testdata", 0)
-	cs.LocalRequester = fakeRequester(testBlocks[:])
-	cs.TempNamer = defTempNamer
+	cs := New(Options{
+		RootPath:       "testdata",
+		LocalRequester: fakeRequester(testBlocks[:]),
+		TempNamer:      defTempNamer,
+	})
 	if err := cs.writeFile(testFile); err != nil {
 		t.Fatal(err)
 	}
 
-	cs = New("testdata", 0)
-	cs.LocalRequester = fakeRequester(testBlocks[:])
-	cs.TempNamer = defTempNamer
-	cs.CurrentFiler = fakeCurrentFiler(testFile)
+	cs = New(Options{
+		RootPath:       "testdata",
+		LocalRequester: fakeRequester(testBlocks[:]),
+		TempNamer:      defTempNamer,
+		CurrentFiler:   fakeCurrentFiler(testFile),
+	})
 
 	td := testDir
 	td.Name = "test" // The name of the file we created above
@@ -443,12 +463,14 @@ func TestChangeSetReplaceDirWithFile(t *testing.T) {
 	td.Name = "test"
 
 	cp := new(countingProgresser)
-	cs := New("testdata", 0)
-	cs.LocalRequester = fakeRequester(testBlocks[:])
-	cs.NetworkRequester = NewAsyncRequester(errorRequester{t}, 4)
-	cs.TempNamer = defTempNamer
-	cs.CurrentFiler = fakeCurrentFiler(td)
-	cs.Progresser = cp
+	cs := New(Options{
+		RootPath:         "testdata",
+		LocalRequester:   fakeRequester(testBlocks[:]),
+		NetworkRequester: NewAsyncRequester(errorRequester{t}, 4),
+		TempNamer:        defTempNamer,
+		CurrentFiler:     fakeCurrentFiler(td),
+		Progresser:       cp,
+	})
 
 	cs.Queue(testFile)
 
@@ -478,10 +500,12 @@ func TestChangeSetFileConflict(t *testing.T) {
 	}
 	defer os.RemoveAll("testdata")
 
-	cs := New("testdata", 0)
-	cs.LocalRequester = fakeRequester(testBlocks[:])
-	cs.NetworkRequester = NewAsyncRequester(errorRequester{t}, 4)
-	cs.TempNamer = defTempNamer
+	cs := New(Options{
+		RootPath:         "testdata",
+		LocalRequester:   fakeRequester(testBlocks[:]),
+		NetworkRequester: NewAsyncRequester(errorRequester{t}, 4),
+		TempNamer:        defTempNamer,
+	})
 
 	// Make sure the source file exists
 	if err := cs.writeFile(testFile); err != nil {
@@ -495,11 +519,14 @@ func TestChangeSetFileConflict(t *testing.T) {
 	newFile.Version = protocol.Vector{{1, 3}, {3, 3}} // in conflict with oldFile
 	newFile.Blocks = []protocol.BlockInfo{{Hash: testBlocks[0].hash, Size: protocol.BlockSize}}
 
-	cs = New("testdata", 1)
-	cs.LocalRequester = fakeRequester(testBlocks[:])
-	cs.NetworkRequester = NewAsyncRequester(errorRequester{t}, 4)
-	cs.TempNamer = defTempNamer
-	cs.CurrentFiler = fakeCurrentFiler(oldFile)
+	cs = New(Options{
+		RootPath:         "testdata",
+		MaxConflicts:     -1,
+		LocalRequester:   fakeRequester(testBlocks[:]),
+		NetworkRequester: NewAsyncRequester(errorRequester{t}, 4),
+		TempNamer:        defTempNamer,
+		CurrentFiler:     fakeCurrentFiler(oldFile),
+	})
 
 	cs.Queue(newFile)
 
@@ -525,10 +552,12 @@ func TestChangeSetFileConflictOnConflict(t *testing.T) {
 	}
 	defer os.RemoveAll("testdata")
 
-	cs := New("testdata", 0)
-	cs.LocalRequester = fakeRequester(testBlocks[:])
-	cs.NetworkRequester = NewAsyncRequester(errorRequester{t}, 4)
-	cs.TempNamer = defTempNamer
+	cs := New(Options{
+		RootPath:         "testdata",
+		LocalRequester:   fakeRequester(testBlocks[:]),
+		NetworkRequester: NewAsyncRequester(errorRequester{t}, 4),
+		TempNamer:        defTempNamer,
+	})
 
 	conflict := testFile
 	conflict.Name = "test.sync-conflict-20160101-000000"
@@ -545,11 +574,13 @@ func TestChangeSetFileConflictOnConflict(t *testing.T) {
 	newFile.Version = protocol.Vector{{1, 3}, {3, 3}} // in conflict with oldFile
 	newFile.Blocks = []protocol.BlockInfo{{Hash: testBlocks[0].hash, Size: protocol.BlockSize}}
 
-	cs = New("testdata", 1)
-	cs.LocalRequester = fakeRequester(testBlocks[:])
-	cs.NetworkRequester = NewAsyncRequester(errorRequester{t}, 4)
-	cs.TempNamer = defTempNamer
-	cs.CurrentFiler = fakeCurrentFiler(oldFile)
+	cs = New(Options{
+		RootPath:         "testdata",
+		LocalRequester:   fakeRequester(testBlocks[:]),
+		NetworkRequester: NewAsyncRequester(errorRequester{t}, 4),
+		TempNamer:        defTempNamer,
+		CurrentFiler:     fakeCurrentFiler(oldFile),
+	})
 
 	cs.Queue(newFile)
 
