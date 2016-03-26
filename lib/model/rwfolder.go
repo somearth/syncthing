@@ -202,7 +202,7 @@ func (p *rwFolder) Serve() {
 		p.scanTimer.Reset(intv)
 	}
 
-	fsWatcher := fswatcher.NewFsWatcher(p.dir)
+	fsWatcher := fswatcher.NewFsWatcher(p.dir, defTempNamer)
 	fsWatchChan, err := fsWatcher.StartWatchingFilesystem()
 	if err != nil {
 		l.Warnln(err)
