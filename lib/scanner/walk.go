@@ -240,9 +240,7 @@ func (w *Walker) walkAndHashFiles(fchan, dchan chan protocol.FileInfo) filepath.
 			return nil
 		}
 
-		if sn := filepath.Base(relPath); sn == ".stignore" || sn == ".stfolder" ||
-			strings.HasPrefix(relPath, ".stversions") || (w.Matcher != nil && w.Matcher.Match(relPath)) {
-			// An ignored file
+		if IsIgnoredPath(relPath, w.Matcher) {
 			l.Debugln("ignored:", relPath)
 			return skip
 		}
@@ -577,4 +575,11 @@ func (c *byteCounter) Total() int64 {
 
 func (c *byteCounter) Close() {
 	close(c.stop)
+}
+
+func IsIgnoredPath(path string, matcher IgnoreMatcher) bool {
+	basename := filepath.Base(path)
+	return basename == ".stignore" || basename == ".stfolder" ||
+		strings.HasPrefix(path, ".stversions") ||
+		(matcher != nil && matcher.Match(path))
 }
