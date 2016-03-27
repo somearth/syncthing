@@ -374,10 +374,10 @@ func (p *rwFolder) Serve() {
 	}
 }
 
-func (p *rwFolder) scanSubsIfHealthy(folder string, subs []string) {
+func (p *rwFolder) scanSubsIfHealthy(folder string, subs []string) error {
 	if err := p.model.CheckFolderHealth(folder); err != nil {
 		l.Infoln("Skipping folder", folder, "scan due to folder error:", err)
-		return
+		return err
 	}
 	if err := p.model.internalScanFolderSubs(folder, subs); err != nil {
 		// Potentially sets the error twice, once in the scanner just
@@ -385,8 +385,9 @@ func (p *rwFolder) scanSubsIfHealthy(folder string, subs []string) {
 		// the same one as returned by CheckFolderHealth, though
 		// duplicate set is handled by setError.
 		p.setError(err)
-		return
+		return err
 	}
+	return nil
 }
 
 func (p *rwFolder) delayFullScanForever() {
