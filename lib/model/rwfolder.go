@@ -361,6 +361,7 @@ func (p *rwFolder) scanSubsIfHealthy(folder string, subs []string) error {
 		l.Infoln("Skipping folder", folder, "scan due to folder error:", err)
 		return err
 	}
+	l.Debugln(p, "Scanning subdirectories")
 	if err := p.model.internalScanFolderSubs(folder, subs); err != nil {
 		// Potentially sets the error twice, once in the scanner just
 		// by doing a check, and once here, if the error returned is
