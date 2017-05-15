@@ -1234,6 +1234,7 @@ func standbyMonitor() {
 }
 
 func autoUpgrade(cfg *config.Wrapper) {
+	return;
 	timer := time.NewTimer(0)
 	sub := events.Default.Subscribe(events.DeviceConnected)
 	for {

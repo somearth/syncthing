@@ -92,7 +92,7 @@ func monitorMain(runtimeOptions RuntimeOptions) {
 			l.Fatalln("stdout:", err)
 		}
 
-		l.Infoln("Starting syncthing")
+		l.Infoln("Starting syncthing for ghumakkad")
 		err = cmd.Start()
 		if err != nil {
 			l.Fatalln(err)

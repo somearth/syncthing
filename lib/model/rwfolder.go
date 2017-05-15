@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"net"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -1393,7 +1394,33 @@ func (f *sendReceiveFolder) pullerRoutine(in <-chan pullBlockState, out chan<- *
 			// Fetch the block, while marking the selected device as in use so that
 			// leastBusy can select another device when someone else asks.
 			activity.using(selected)
+			
+			
+			/*if f.model.conn[selected.ID].Type() == "relay-client" || f.model.conn[selected.ID].Type() == "relay-server" {
+				l.Infoln("Not requesting remote data over relay")
+				continue
+			}*/
+			
+			remoteAddrStr := f.model.conn[selected.ID].RemoteAddr().String()//<ip>:<port>
+			l.Debugln("Analyzing remote addr "+remoteAddrStr+"to check if it is a Local or a Global address")
+			allowMakingDataRequest := true
+			if strings.HasPrefix(remoteAddrStr, "[") {//implies ipv6
+				allowMakingDataRequest = strings.HasPrefix(remoteAddrStr, "[fe80")
+			} else {
+				remoteIpStr := strings.SplitN(remoteAddrStr,":",2)[0]//w.x.y.z
+				remoteIP := net.ParseIP(remoteIpStr)
+				l.Debugln("Remote addr burndown " + remoteAddrStr + " " + remoteIpStr + " " + remoteIP.String())
+				allowMakingDataRequest = remoteIP.IsLinkLocalUnicast()
+			}
+			
+			if !allowMakingDataRequest {
+				l.Infoln("Not requesting remote data over global address - " + remoteAddrStr)
+				continue
+			}
+			
 			buf, lastError := f.model.requestGlobal(selected.ID, f.folderID, state.file.Name, state.block.Offset, int(state.block.Size), state.block.Hash, selected.FromTemporary)
+			
+			
 			activity.done(selected)
 			if lastError != nil {
 				l.Debugln("request:", f.folderID, state.file.Name, state.block.Offset, state.block.Size, "returned error:", lastError)
