@@ -406,6 +406,14 @@ func (f *sendReceiveFolder) pullerIteration(ignores *ignore.Matcher) int {
 			devices := folderFiles.Availability(file.Name)
 			for _, dev := range devices {
 				if f.model.ConnectedTo(dev) {
+					remoteAddrStr := f.model.conn[dev].RemoteAddr().String()
+					isLocal := isAddressLocal(remoteAddrStr)//<K>:<port>
+					
+					if !isLocal {
+						l.Infoln("Not requesting remote data over global address - " + remoteAddrStr)
+						continue
+					}
+					
 					f.queue.Push(file.Name, file.Size, file.ModTime())
 					changed++
 					break
@@ -1395,31 +1403,7 @@ func (f *sendReceiveFolder) pullerRoutine(in <-chan pullBlockState, out chan<- *
 			// leastBusy can select another device when someone else asks.
 			activity.using(selected)
 			
-			
-			/*if f.model.conn[selected.ID].Type() == "relay-client" || f.model.conn[selected.ID].Type() == "relay-server" {
-				l.Infoln("Not requesting remote data over relay")
-				continue
-			}*/
-			
-			remoteAddrStr := f.model.conn[selected.ID].RemoteAddr().String()//<ip>:<port>
-			l.Debugln("Analyzing remote addr "+remoteAddrStr+"to check if it is a Local or a Global address")
-			allowMakingDataRequest := true
-			if strings.HasPrefix(remoteAddrStr, "[") {//implies ipv6
-				allowMakingDataRequest = strings.HasPrefix(remoteAddrStr, "[fe80")
-			} else {
-				remoteIpStr := strings.SplitN(remoteAddrStr,":",2)[0]//w.x.y.z
-				remoteIP := net.ParseIP(remoteIpStr)
-				l.Debugln("Remote addr burndown " + remoteAddrStr + " " + remoteIpStr + " " + remoteIP.String())
-				allowMakingDataRequest = remoteIP.IsLinkLocalUnicast()
-			}
-			
-			if !allowMakingDataRequest {
-				l.Infoln("Not requesting remote data over global address - " + remoteAddrStr)
-				continue
-			}
-			
 			buf, lastError := f.model.requestGlobal(selected.ID, f.folderID, state.file.Name, state.block.Offset, int(state.block.Size), state.block.Hash, selected.FromTemporary)
-			
 			
 			activity.done(selected)
 			if lastError != nil {
@@ -1848,4 +1832,25 @@ func componentCount(name string) int {
 		}
 	}
 	return count
+}
+
+/*
+ * addr = <ip>:<port>
+ */
+func isAddressLocal(addr string) bool {
+	/*if f.model.conn[selected.ID].Type() == "relay-client" || f.model.conn[selected.ID].Type() == "relay-server" {
+		l.Infoln("Not requesting remote data over relay")
+		continue
+	}*/
+	l.Debugln("Analyzing addr "+addr+" to check if it is a Local address")
+	isLocal := true
+	if strings.HasPrefix(addr, "[") {//implies ipv6
+		isLocal = strings.HasPrefix(addr, "[fe80")
+	} else {
+		ipStr := strings.SplitN(addr,":",2)[0]//w.x.y.z
+		ip := net.ParseIP(ipStr)
+		l.Debugln("addr burndown " + addr + " " + ipStr + " " + ip.String())
+		isLocal = ip.IsLinkLocalUnicast()
+	}
+	return isLocal
 }
