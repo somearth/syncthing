@@ -60,6 +60,16 @@ var (
 	errSymlinksUnsupported = errors.New("symlinks not supported")
 )
 
+//Private IPv4 ranges
+var (
+	MASK_1 = net.IPv4Mask(255, 0, 0, 0)
+	MASKED_LOCAL_IP_1 = net.IPv4(10, 0, 0, 0)
+	MASK_2 = net.IPv4Mask(255, 240, 0, 0)
+	MASKED_LOCAL_IP_2 = net.IPv4(172, 16, 0, 0)
+	MASK_3 = net.IPv4Mask(255, 255, 0, 0)
+	MASKED_LOCAL_IP_3 = net.IPv4(192, 168, 0, 0)
+)
+
 const (
 	dbUpdateHandleDir = iota
 	dbUpdateDeleteDir
@@ -1850,7 +1860,7 @@ func isAddressLocal(addr string) bool {
 		ipStr := strings.SplitN(addr,":",2)[0]//w.x.y.z
 		ip := net.ParseIP(ipStr)
 		l.Debugln("addr burndown " + addr + " " + ipStr + " " + ip.String())
-		isLocal = ip.IsLinkLocalUnicast()
+		isLocal = ip.Mask(MASK_3).Equal(MASKED_LOCAL_IP_3) || ip.Mask(MASK_1).Equal(MASKED_LOCAL_IP_1) || ip.Mask(MASK_2).Equal(MASKED_LOCAL_IP_2)
 	}
 	return isLocal
 }
