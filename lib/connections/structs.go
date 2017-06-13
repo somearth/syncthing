@@ -53,6 +53,7 @@ const (
 	connTypeTCPServer
 	connTypeKCPClient
 	connTypeKCPServer
+	connTypeTCPLocalClient
 )
 
 func (t connType) String() string {
@@ -69,6 +70,8 @@ func (t connType) String() string {
 		return "kcp-client"
 	case connTypeKCPServer:
 		return "kcp-server"
+	case connTypeTCPLocalClient:
+		return "tcp-local-client"
 	default:
 		return "unknown-type"
 	}

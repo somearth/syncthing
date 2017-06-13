@@ -575,6 +575,10 @@ func (s *Service) Status() map[string]interface{} {
 }
 
 func (s *Service) getDialerFactory(cfg config.Configuration, uri *url.URL) (dialerFactory, error) {
+	dialerFactoryKey := uri.Scheme
+	if isAddressLocal(uri.Host) {
+		dialerFactoryKey += "-local"
+	}
 	dialerFactory, ok := dialers[uri.Scheme]
 	if !ok {
 		return nil, fmt.Errorf("unknown address scheme %q", uri.Scheme)

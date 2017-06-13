@@ -13,6 +13,7 @@ import (
 )
 
 const (
+	tcpLocalPriority   = 9
 	tcpPriority   = 10
 	kcpPriority   = 50
 	relayPriority = 200
