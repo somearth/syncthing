@@ -409,18 +409,18 @@ func (f *sendReceiveFolder) pullerIteration(ignores *ignore.Matcher) int {
 		case file.Type == protocol.FileInfoTypeFile:
 			// Queue files for processing after directories and symlinks, if
 			// it has availability.
-
+			fileAllowedOnNet := isFileAllowedOnNet(file)
 			devices := folderFiles.Availability(file.Name)
 			for _, dev := range devices {
 				if f.model.ConnectedTo(dev) {
-					remoteAddrStr := f.model.conn[dev].RemoteAddr().String()
-					isLocal := isAddressLocal(remoteAddrStr)//<K>:<port>
-					
-					if !isLocal {
-						l.Infoln("Not requesting remote data over global address - " + remoteAddrStr)
-						continue
+					if !fileAllowedOnNet {
+						remoteAddrStr := f.model.conn[dev].RemoteAddr().String()
+						isLocal := isAddressLocal(remoteAddrStr)//<K>:<port>
+						if !isLocal {
+							l.Infoln("Not requesting remote data over global address - " + remoteAddrStr)
+							continue
+						}
 					}
-					
 					f.queue.Push(file.Name, file.Size, file.ModTime())
 					changed++
 					break
@@ -1861,3 +1861,8 @@ func isAddressLocal(addr string) bool {
 	}
 	return isLocal
 }
+
+func isFileAllowedOnNet(file db.FileIntf) bool {
+	return strings.HasSuffix(file.FileName(), ".json") || strings.HasSuffix(file.FileName(), ".txt")
+} 
+
