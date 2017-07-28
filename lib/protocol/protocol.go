@@ -133,10 +133,10 @@ type asyncMessage struct {
 const (
 	// PingSendInterval is how often we make sure to send a message, by
 	// triggering pings if necessary.
-	PingSendInterval = 90 * time.Second
+	PingSendInterval = 40 * time.Second
 	// ReceiveTimeout is the longest we'll wait for a message from the other
 	// side before closing the connection.
-	ReceiveTimeout = 300 * time.Second
+	ReceiveTimeout = 90 * time.Second
 )
 
 // A buffer pool for global use. We don't allocate smaller buffers than 64k,

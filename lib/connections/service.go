@@ -242,7 +242,7 @@ next:
 			// this one. But in case we are two devices connecting to each other
 			// in parallel we don't want to do that or we end up with no
 			// connections still established...
-			l.Infof("Connected to already connected device (%s)", remoteID)
+			l.Infof("Already Connected %s [%s (%s)] closing [%s (%s)]", remoteID, ct.internalConn.RemoteAddr(), ct.internalConn.Type(), c.RemoteAddr(), c.Type())
 			c.Close()
 			continue
 		}
